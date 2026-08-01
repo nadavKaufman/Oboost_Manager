@@ -1,10 +1,13 @@
 import { useState } from 'react';
-import { type Machine, getMachineStatus, type Employee } from '../../types/machine';
+import { type Machine, getMachineStatus, type Employee, type UserRole } from '../../types/machine';
 
 interface Props {
   machines: Machine[];
   employees: Employee[];
   onMarkCleaned: (id: string) => void;
+  currentUserRole?: UserRole;
+  savingWorkingIds: Set<string>;
+  onMarkWorking: (id: string) => void;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -25,8 +28,16 @@ const FAULT_STATUS_CLASS: Record<string, string> = {
   maintenance: 'status-badge--needs_cleaning',
 };
 
-export default function MachineTable({ machines, employees, onMarkCleaned }: Props) {
+export default function MachineTable({
+  machines,
+  employees,
+  onMarkCleaned,
+  currentUserRole,
+  savingWorkingIds,
+  onMarkWorking,
+}: Props) {
   const [reported, setReported] = useState<Set<string>>(new Set());
+  const canMarkWorking = currentUserRole === 'manager';
 
   function toggleReport(id: string) {
     setReported(prev => {
@@ -52,7 +63,7 @@ export default function MachineTable({ machines, employees, onMarkCleaned }: Pro
         <thead>
           <tr>
             <th>Machine</th>
-            <th>Assigned Worker</th>
+            <th>Assigned Employee</th>
             <th>Last Cleaned</th>
             <th>Next Due</th>
             <th>Cleaning</th>
@@ -78,7 +89,7 @@ export default function MachineTable({ machines, employees, onMarkCleaned }: Pro
                   <div className="machine-name">{machine.name}</div>
                   <div className="machine-location">{machine.location}</div>
                 </td>
-                <td data-label="Assigned Worker">
+                <td data-label="Assigned Employee">
                   <span className="machine-model">{getEmployeeName(machine.assignedEmployeeId)}</span>
                 </td>
                 <td data-label="Last Cleaned">
@@ -113,6 +124,15 @@ export default function MachineTable({ machines, employees, onMarkCleaned }: Pro
                     >
                       {isReported ? 'Reported ✓' : 'Report Issue'}
                     </button>
+                    {canMarkWorking && machine.faultStatus === 'fault' && (
+                      <button
+                        className="btn-mark-working"
+                        disabled={savingWorkingIds.has(machine.id)}
+                        onClick={() => onMarkWorking(machine.id)}
+                      >
+                        {savingWorkingIds.has(machine.id) ? 'Saving…' : 'Mark as Working'}
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

@@ -10,8 +10,6 @@ interface Props {
 
 const ROLE_LABEL: Record<UserRole, string> = {
   manager: 'Manager',
-  admin: 'Admin',
-  worker: 'Worker',
   employee: 'Employee',
 };
 

@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 // ---------------------------------------------------------------------------
 // Domain types — mirror the database check constraints exactly
 // ---------------------------------------------------------------------------
-export type UserRole       = 'employee' | 'worker' | 'admin' | 'manager';
+export type UserRole       = 'employee' | 'manager';
 export type FaultStatus    = 'ok' | 'fault' | 'maintenance';
 export type CleaningStatus = 'clean' | 'needs_cleaning' | 'overdue';
 export type ReportSeverity = 'low' | 'medium' | 'high' | 'critical';
@@ -225,4 +225,18 @@ export async function getMachines(): Promise<Machine[]> {
     faultStatus: row.fault_status,
     maintenanceNotes: row.maintenance_notes,
   }));
+}
+
+export async function markMachineWorking(machineId: string): Promise<{ error: string | null }> {
+  // Cast needed: same generic collapse-to-never issue as getMachines() above,
+  // affecting the update() argument type too.
+  const { error } = await (supabase.from('machines') as any)
+    .update({ fault_status: 'ok' })
+    .eq('id', machineId);
+
+  if (error) {
+    console.error('[oboost] markMachineWorking error:', error.message);
+    return { error: 'Could not update the machine. Please try again.' };
+  }
+  return { error: null };
 }

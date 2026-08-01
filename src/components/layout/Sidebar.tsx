@@ -9,9 +9,7 @@ interface Props {
 
 const ROLE_RANK: Record<UserRole, number> = {
   employee: 0,
-  worker: 1,
-  admin: 2,
-  manager: 3,
+  manager: 1,
 };
 
 const NAV_ITEMS: {
@@ -21,9 +19,9 @@ const NAV_ITEMS: {
   minRole?: UserRole;
 }[] = [
   { icon: '▦', label: 'Overview', path: '/dashboard' },
-  { icon: '⊙', label: 'Machines', path: '/dashboard' },
-  { icon: '👥', label: 'Employees', path: '/dashboard', minRole: 'admin' },
-  { icon: '☰', label: 'Reports', path: '/dashboard' },
+  { icon: '⊙', label: 'Machines', path: '/machines' },
+  { icon: '👥', label: 'Employees', path: '/employees', minRole: 'manager' },
+  { icon: '☰', label: 'Reports', path: '/reports' },
 ];
 
 export default function Sidebar({ open, onClose, userRole }: Props) {
@@ -50,9 +48,7 @@ export default function Sidebar({ open, onClose, userRole }: Props) {
             key={item.label}
             to={item.path}
             className={`sidebar__nav-item${
-              location.pathname === item.path && item.label === 'Overview'
-                ? ' active'
-                : ''
+              location.pathname === item.path ? ' active' : ''
             }`}
             onClick={onClose}
           >

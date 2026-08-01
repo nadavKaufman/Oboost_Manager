@@ -7,7 +7,7 @@ import { mockMachines } from '../data/mockMachines';
 import { MOCK_EMPLOYEES } from '../data/mockUsers';
 import { type Machine, getMachineStatus } from '../types/machine';
 import { useAuth } from '../context/AuthContext';
-import { getMachines } from '../lib/supabase';
+import { getMachines, markMachineWorking } from '../lib/supabase';
 import '../styles/layout.css';
 import '../styles/dashboard.css';
 
@@ -23,6 +23,8 @@ export default function Dashboard() {
   const displayRole = profile?.role ?? MOCK_CURRENT_USER.role;
   const [machines, setMachines] = useState<Machine[]>(mockMachines);
   const [dataSource, setDataSource] = useState<'mock' | 'supabase'>('mock');
+  const [savingWorkingIds, setSavingWorkingIds] = useState<Set<string>>(new Set());
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -43,6 +45,26 @@ export default function Dashboard() {
         m.id === id ? { ...m, lastCleaned: today, cleaningIntervalDays: 21 } : m
       )
     );
+  }
+
+  async function handleMarkWorking(id: string) {
+    setActionError(null);
+    setSavingWorkingIds(prev => new Set(prev).add(id));
+
+    const { error } = await markMachineWorking(id);
+
+    if (error) {
+      setActionError(error);
+    } else {
+      const rows = await getMachines();
+      if (rows.length > 0) setMachines(rows);
+    }
+
+    setSavingWorkingIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   }
 
   const total = machines.length;
@@ -80,7 +102,21 @@ export default function Dashboard() {
           </div>
         )}
 
-        <MachineTable machines={machines} employees={MOCK_EMPLOYEES} onMarkCleaned={markAsCleaned} />
+        {actionError && (
+          <div className="alert-banner">
+            <span className="alert-banner__dot" />
+            {actionError}
+          </div>
+        )}
+
+        <MachineTable
+          machines={machines}
+          employees={MOCK_EMPLOYEES}
+          onMarkCleaned={markAsCleaned}
+          currentUserRole={profile?.role}
+          savingWorkingIds={savingWorkingIds}
+          onMarkWorking={handleMarkWorking}
+        />
 
         {displayRole === 'manager' && (
           <div className="employee-section">

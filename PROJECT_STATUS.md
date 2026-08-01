@@ -48,7 +48,7 @@
 - Cron transitions:
   - `clean → needs_cleaning` when `next_cleaning_due_at <= now()`
   - `needs_cleaning → overdue` when `next_cleaning_due_at <= now() - 7 days`
-- Role hierarchy: `employee < worker < admin < manager`
+- Role hierarchy: `employee < manager` (simplified from four roles — see Phase 5)
 - Authorization is database-based (RLS), not hardcoded in the frontend
 - `service_role` key is never exposed in the frontend or any `VITE_` variable
 
@@ -65,7 +65,7 @@
 - `src/data/mockUsers.ts` — employee table still uses 4 hardcoded employees
 - `EmployeeTable` in dashboard — not connected to DB
 - `MachineCard` / `MachineGrid` components — not in the main dashboard flow
-- Assigned worker column — shows `'—'` for all live machines (assignments not fetched yet)
+- Assigned employee column — shows `'—'` for all live machines (assignments not fetched yet)
 - "Mark as Cleaned" button — updates local state only, no DB write
 - "Report Issue" button — local toggle only, no DB write
 
@@ -137,10 +137,10 @@ Dashboard machine table now fetches from `public.machines` (live). Employee tabl
 | Feature | Status |
 |---------|--------|
 | Employee table from Supabase (`profiles`) | Not started |
-| Assigned worker column (machine_assignments join) | Not started |
+| Assigned employee column (machine_assignments join) | Not started |
 | "Mark as Cleaned" action (DB) | Not started |
 | "File Maintenance Report" action (DB) | Not started |
-| Machine assignment UI (admin/manager) | Not started |
+| Machine assignment UI (manager) | Not started |
 | Users management page | Not started |
 | Machine detail page | Not started |
 | Live cleaning_logs display | Not started |
@@ -158,7 +158,7 @@ Option A (mutations first):
 
 Option B (employee data first):
 1. Replace `MOCK_EMPLOYEES` with a `getEmployees()` query from `profiles`
-2. Wire assigned worker column via `machine_assignments` join
+2. Wire assigned employee column via `machine_assignments` join
 
 ---
 
@@ -220,3 +220,58 @@ Do these in the Supabase Dashboard before running any migrations:
      update public.profiles set role = 'manager' where id = '<your-user-uuid>';
      ```
    - All new signups default to `employee` role
+
+---
+
+## 11. Phase 4 — Sidebar Routing (Completed)
+
+Sidebar links now navigate to real, protected pages instead of all pointing at `/dashboard`. Pages are structural placeholders only — no data fetching or Supabase logic yet.
+
+### Files created
+| File | Purpose |
+|------|---------|
+| `src/pages/Machines.tsx` | Placeholder page at `/machines`, wrapped in `DashboardLayout` |
+| `src/pages/Employees.tsx` | Placeholder page at `/employees`, wrapped in `DashboardLayout` |
+| `src/pages/Reports.tsx` | Placeholder page at `/reports`, wrapped in `DashboardLayout` |
+
+### Files modified
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Added protected `/machines`, `/employees`, `/reports` routes (same `ProtectedRoute` pattern as `/dashboard`) |
+| `src/components/layout/Sidebar.tsx` | Fixed `NAV_ITEMS` paths (Machines/Employees/Reports no longer all point to `/dashboard`); generalized active-link check to `location.pathname === item.path` for all items, not just Overview |
+| `src/styles/dashboard.css` | Added `.placeholder-panel` style reused by all three new pages |
+
+### Still not implemented
+- Real content for Machines/Employees/Reports pages (data fetching, tables, forms)
+
+---
+
+## 12. Phase 5 — Role Simplification (Completed)
+
+Reduced the role system from four roles (`employee`, `worker`, `admin`, `manager`) to two (`employee`, `manager`). Existing `admin` profiles are migrated to `manager` (no functionality lost); existing `worker` profiles are migrated to `employee`.
+
+### Files created
+| File | Purpose |
+|------|---------|
+| `supabase/migrations/05_role_simplification.sql` | Live-DB migration: converts existing `admin`→`manager` and `worker`→`employee` rows, tightens the `profiles.role` CHECK constraint to `('employee', 'manager')`, redefines `is_admin_or_manager()` to check `role = 'manager'` only |
+
+`01_schema.sql` through `04_cron.sql` are treated as immutable, already-applied migration history and were **not** edited — `05_role_simplification.sql` is the only file altering the live database, and must be run manually in the Supabase SQL Editor (see section 10 workflow) after `04_cron.sql`.
+
+### Files modified
+| File | Change |
+|------|--------|
+| `src/types/machine.ts` | `UserRole` narrowed to `'manager' \| 'employee'` |
+| `src/lib/supabase.ts` | `UserRole` narrowed to `'employee' \| 'manager'` (mirrors new DB constraint) |
+| `src/components/layout/Sidebar.tsx` | `ROLE_RANK` reduced to `{ employee: 0, manager: 1 }`; Employees nav item now requires `minRole: 'manager'` (was `'admin'`) |
+| `src/components/layout/TopBar.tsx` | `ROLE_LABEL` reduced to Manager/Employee only |
+| `src/components/dashboard/EmployeeTable.tsx` | `ROLE_LABEL` reduced to Manager/Employee only |
+| `src/components/dashboard/MachineTable.tsx` | "Mark as Working" visibility now checks `currentUserRole === 'manager'` only (was admin-or-manager); "Assigned Worker" column renamed to "Assigned Employee" |
+| `src/data/mockUsers.ts` | Sara Cohen `admin`→`manager`; Yossi Ben-David and Dan Mizrahi `worker`→`employee` |
+| `src/pages/Landing.tsx` | Marketing copy updated to describe two roles instead of four |
+| `PROJECT_STATUS.md` | This section, plus role-hierarchy and "assigned worker" references updated |
+
+### Security note
+RLS elevated access (`is_admin_or_manager()`) now means **manager only** — a narrowing, not a weakening, of access. The function name is kept unchanged deliberately so no RLS policy needed to be dropped or recreated; only its body was redefined via `CREATE OR REPLACE FUNCTION`.
+
+### Deployment ordering
+Run `05_role_simplification.sql` before or together with deploying this frontend change. If old `worker`/`admin` values remain in the live DB while the frontend only recognizes `employee`/`manager`, role-based UI (nav filtering, role labels) would break for those accounts until the migration runs.

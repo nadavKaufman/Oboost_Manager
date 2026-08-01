@@ -34,7 +34,7 @@ export default function Landing() {
           <p className="section-label">Portal access</p>
           <h2 className="section-title">Built for OBoost staff</h2>
           <p className="section-subtitle">
-            Role-based access for employees, workers, admins, and managers.
+            Role-based access for employees and managers.
             Each role controls what you see and what actions you can take.
           </p>
           <div className="features__grid">
@@ -42,8 +42,8 @@ export default function Landing() {
               <div className="feature-card__icon">📍</div>
               <h3 className="feature-card__title">Machine Assignments</h3>
               <p className="feature-card__desc">
-                Workers and employees see only their assigned machines.
-                Admins and managers have full visibility across all OBoost
+                Employees see only their assigned machines.
+                Managers have full visibility across all OBoost
                 stations in Israel.
               </p>
             </div>
@@ -60,9 +60,9 @@ export default function Landing() {
               <div className="feature-card__icon">🔑</div>
               <h3 className="feature-card__title">Role-Based Access</h3>
               <p className="feature-card__desc">
-                Four roles: employee, worker, admin, manager. Managers assign
-                machines to staff. Admins oversee operations. Workers and
-                employees handle their assigned stations.
+                Two roles: employee, manager. Managers assign machines to
+                staff and oversee operations. Employees handle their
+                assigned stations.
               </p>
             </div>
           </div>

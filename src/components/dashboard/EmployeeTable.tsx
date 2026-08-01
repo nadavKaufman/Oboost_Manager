@@ -2,8 +2,6 @@ import type { Employee } from '../../types/machine';
 
 const ROLE_LABEL: Record<string, string> = {
   manager: 'Manager',
-  admin: 'Admin',
-  worker: 'Worker',
   employee: 'Employee',
 };
 

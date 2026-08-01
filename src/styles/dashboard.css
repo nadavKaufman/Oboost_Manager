@@ -269,6 +269,48 @@
   transform: scale(0.97);
 }
 
+/* ─── Mark as Working button ─── */
+
+.btn-mark-working {
+  padding: 6px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.btn-mark-working:hover:not(:disabled) {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-tint);
+}
+
+.btn-mark-working:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn-mark-working:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Placeholder panel (temporary page content) ─── */
+
+.placeholder-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 40px 24px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
 /* ─── Employee section ─── */
 
 .employee-section {

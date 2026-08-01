@@ -4,14 +4,14 @@ export const MOCK_EMPLOYEES: Employee[] = [
   {
     id: 'e2',
     name: 'Sara Cohen',
-    role: 'admin',
+    role: 'manager',
     assignedMachineIds: ['m1', 'm2', 'm3'],
     activeTaskCount: 2,
   },
   {
     id: 'e3',
     name: 'Yossi Ben-David',
-    role: 'worker',
+    role: 'employee',
     assignedMachineIds: ['m4', 'm5'],
     activeTaskCount: 1,
   },
@@ -25,7 +25,7 @@ export const MOCK_EMPLOYEES: Employee[] = [
   {
     id: 'e5',
     name: 'Dan Mizrahi',
-    role: 'worker',
+    role: 'employee',
     assignedMachineIds: [],
     activeTaskCount: 0,
   },
