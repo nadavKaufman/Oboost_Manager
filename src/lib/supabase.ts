@@ -35,6 +35,38 @@ export type Database = {
           role?:       UserRole;
           avatar_url?: string | null;
         };
+        Relationships: [];
+      };
+      employees: {
+        Row: {
+          employee_id:  string;
+          first_name:   string;
+          last_name:    string;
+          email:        string;
+          phone_number: string;
+          hire_date:    string | null;
+          job_title:    string;
+          created_at:   string;
+          updated_at:   string;
+        };
+        Insert: {
+          employee_id:  string;
+          first_name?:  string;
+          last_name?:   string;
+          email:        string;
+          phone_number?: string;
+          hire_date?:   string | null;
+          job_title?:   string;
+        };
+        Update: {
+          first_name?:  string;
+          last_name?:   string;
+          email?:       string;
+          phone_number?: string;
+          hire_date?:   string | null;
+          job_title?:   string;
+        };
+        Relationships: [];
       };
       machines: {
         Row: {
@@ -74,6 +106,7 @@ export type Database = {
           cleaning_status?:      CleaningStatus;
           is_active?:            boolean;
         };
+        Relationships: [];
       };
       machine_assignments: {
         Row: {
@@ -98,6 +131,7 @@ export type Database = {
           unassigned_at?: string | null;
           is_active?:     boolean;
         };
+        Relationships: [];
       };
       cleaning_logs: {
         Row: {
@@ -117,6 +151,7 @@ export type Database = {
           previous_cleaned_at?: string | null;
         };
         Update: Record<string, never>;
+        Relationships: [];
       };
       maintenance_reports: {
         Row: {
@@ -151,6 +186,7 @@ export type Database = {
           resolved_at?:      string | null;
           resolution_notes?: string | null;
         };
+        Relationships: [];
       };
       machine_status_history: {
         Row: {
@@ -164,8 +200,13 @@ export type Database = {
         };
         Insert: Record<string, never>;
         Update: Record<string, never>;
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 };
 
@@ -190,6 +231,105 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 // Data helpers
 // ---------------------------------------------------------------------------
 import type { Machine } from '../types/machine';
+
+export interface EmployeeRecord {
+  employee_id:  string;
+  first_name:   string;
+  last_name:    string;
+  email:        string;
+  phone_number: string;
+  hire_date:    string | null;
+  job_title:    string;
+  role:         UserRole;
+  created_at:   string;
+}
+
+export async function getEmployees(): Promise<EmployeeRecord[]> {
+  const result = await supabase
+    .from('employees')
+    .select('employee_id, first_name, last_name, email, phone_number, hire_date, job_title, created_at, profiles (role)')
+    .order('first_name');
+
+  type EmpRow = {
+    employee_id:  string;
+    first_name:   string;
+    last_name:    string;
+    email:        string;
+    phone_number: string;
+    hire_date:    string | null;
+    job_title:    string;
+    created_at:   string;
+    profiles:     { role: UserRole } | null;
+  };
+  const data = result.data as EmpRow[] | null;
+
+  if (result.error) {
+    console.error('[oboost] Supabase employees error:', result.error.message);
+    return [];
+  }
+  if (!data || data.length === 0) {
+    console.log('[oboost] Employees loaded: 0');
+    return [];
+  }
+  console.log('[oboost] Employees loaded:', data.length);
+
+  return data.map(row => ({
+    employee_id:  row.employee_id,
+    first_name:   row.first_name,
+    last_name:    row.last_name,
+    email:        row.email,
+    phone_number: row.phone_number,
+    hire_date:    row.hire_date,
+    job_title:    row.job_title,
+    created_at:   row.created_at,
+    role:         row.profiles?.role ?? 'employee',
+  }));
+}
+
+export interface CreateEmployeeInput {
+  firstName:   string;
+  lastName:    string;
+  email:       string;
+  phoneNumber: string;
+  hireDate:    string | null;
+  jobTitle:    string;
+  role:        UserRole;
+  password:    string;
+}
+
+export async function createEmployee(
+  input: CreateEmployeeInput
+): Promise<{ error: string | null }> {
+  const { data, error } = await supabase.auth.signUp({
+    email: input.email,
+    password: input.password,
+    options: {
+      data: { full_name: `${input.firstName} ${input.lastName}`.trim() },
+    },
+  });
+
+  if (error) return { error: error.message };
+  if (!data.user) return { error: 'No user was created.' };
+
+  const { error: empError } = await supabase.from('employees').insert({
+    employee_id:  data.user.id,
+    first_name:   input.firstName,
+    last_name:    input.lastName,
+    email:        input.email,
+    phone_number: input.phoneNumber,
+    hire_date:    input.hireDate,
+    job_title:    input.jobTitle,
+  });
+  if (empError) return { error: empError.message };
+
+  const { error: roleError } = await supabase
+    .from('profiles')
+    .update({ role: input.role })
+    .eq('id', data.user.id);
+  if (roleError) return { error: roleError.message };
+
+  return { error: null };
+}
 
 export async function getMachines(): Promise<Machine[]> {
   console.log('[oboost] Fetching machines...');
