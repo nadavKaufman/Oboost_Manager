@@ -26,10 +26,10 @@
 ### Files created
 | File | Purpose |
 |------|---------|
-| `supabase/migrations/01_schema.sql` | All database tables with columns, types, constraints |
-| `supabase/migrations/02_triggers.sql` | auto-create profile on signup, updated_at, status history logging, fault escalation |
-| `supabase/migrations/03_rls.sql` | Row Level Security policies for all 6 tables |
-| `supabase/migrations/04_cron.sql` | Daily pg_cron job to update cleaning_status |
+| `backend/migrations/01_schema.sql` | All database tables with columns, types, constraints |
+| `backend/migrations/02_triggers.sql` | auto-create profile on signup, updated_at, status history logging, fault escalation |
+| `backend/migrations/03_rls.sql` | Row Level Security policies for all 6 tables |
+| `backend/migrations/04_cron.sql` | Daily pg_cron job to update cleaning_status |
 | `.env.example` | Template for required environment variables |
 | `src/lib/supabase.ts` | Typed Supabase client singleton + full Database type definition |
 | `PROJECT_STATUS.md` | This file |

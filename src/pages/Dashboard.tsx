@@ -4,10 +4,9 @@ import StatCard from '../components/dashboard/StatCard';
 import MachineTable from '../components/dashboard/MachineTable';
 import EmployeeTable from '../components/dashboard/EmployeeTable';
 import { mockMachines } from '../data/mockMachines';
-import { MOCK_EMPLOYEES } from '../data/mockUsers';
-import { type Machine, getMachineStatus } from '../types/machine';
+import { type Machine, type Employee, getMachineStatus } from '../types/machine';
 import { useAuth } from '../context/AuthContext';
-import { getMachines, markMachineWorking } from '../lib/supabase';
+import { getMachines, markMachineWorking, getEmployees, type EmployeeRecord } from '../lib/supabase';
 import '../styles/layout.css';
 import '../styles/dashboard.css';
 
@@ -17,11 +16,22 @@ const MOCK_CURRENT_USER = {
   role: 'manager' as const,
 };
 
+function mapEmployees(rows: EmployeeRecord[]): Employee[] {
+  return rows.map(row => ({
+    id: row.employee_id,
+    name: `${row.first_name} ${row.last_name}`.trim(),
+    role: row.role,
+    assignedMachineIds: [],
+    activeTaskCount: 0,
+  }));
+}
+
 export default function Dashboard() {
   const { profile, session, loading } = useAuth();
   const displayName = profile?.full_name ?? MOCK_CURRENT_USER.name;
   const displayRole = profile?.role ?? MOCK_CURRENT_USER.role;
   const [machines, setMachines] = useState<Machine[]>(mockMachines);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [dataSource, setDataSource] = useState<'mock' | 'supabase'>('mock');
   const [savingWorkingIds, setSavingWorkingIds] = useState<Set<string>>(new Set());
   const [actionError, setActionError] = useState<string | null>(null);
@@ -35,6 +45,9 @@ export default function Dashboard() {
         setMachines(rows);
         setDataSource('supabase');
       }
+    });
+    getEmployees().then(rows => {
+      setEmployees(mapEmployees(rows));
     });
   }, [loading, session]);
 
@@ -111,7 +124,7 @@ export default function Dashboard() {
 
         <MachineTable
           machines={machines}
-          employees={MOCK_EMPLOYEES}
+          employees={employees}
           onMarkCleaned={markAsCleaned}
           currentUserRole={profile?.role}
           savingWorkingIds={savingWorkingIds}
@@ -120,7 +133,7 @@ export default function Dashboard() {
 
         {displayRole === 'manager' && (
           <div className="employee-section">
-            <EmployeeTable employees={MOCK_EMPLOYEES} />
+            <EmployeeTable employees={employees} />
           </div>
         )}
       </div>
