@@ -1,0 +1,439 @@
+/* ════════════════════════════════════════════
+   DASHBOARD PAGE CONTENT
+════════════════════════════════════════════ */
+
+.dashboard-page {
+  flex: 1;
+  padding: 32px 28px 64px;
+  max-width: 1200px;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .dashboard-page {
+    padding: 20px 16px 48px;
+  }
+}
+
+/* ─── Page header ─── */
+
+.page-header {
+  margin-bottom: 28px;
+}
+
+.page-header__title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+
+.page-header__subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* ─── Stat cards ─── */
+
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+@media (max-width: 900px) {
+  .stat-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 420px) {
+  .stat-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-card__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.stat-card__value {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin-bottom: 5px;
+  color: var(--text);
+}
+
+.stat-card__value--green { color: var(--green); }
+.stat-card__value--amber { color: var(--amber); }
+.stat-card__value--red   { color: var(--red); }
+
+.stat-card__subtext {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ─── Machine section wrapper ─── */
+
+.machine-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.machine-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.machine-section__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.machine-section__count {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* ─── Table ─── */
+
+.machine-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.machine-table th {
+  padding: 10px 20px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.machine-table td {
+  padding: 14px 20px;
+  font-size: 14px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.machine-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.machine-table tbody tr {
+  transition: background 0.1s;
+}
+
+.machine-table tbody tr:hover {
+  background: #FAFAF9;
+}
+
+.machine-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.machine-location {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.machine-model {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.machine-date {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.machine-due {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.machine-due--clean          { color: var(--green); }
+.machine-due--needs_cleaning { color: var(--amber); }
+.machine-due--overdue        { color: var(--red); }
+
+/* ─── Status badge ─── */
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.status-badge__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-badge--clean {
+  background: var(--green-tint);
+  color: var(--green);
+}
+
+.status-badge--clean .status-badge__dot {
+  background: var(--green);
+}
+
+.status-badge--needs_cleaning {
+  background: var(--amber-tint);
+  color: var(--amber);
+}
+
+.status-badge--needs_cleaning .status-badge__dot {
+  background: var(--amber);
+}
+
+.status-badge--overdue {
+  background: var(--red-tint);
+  color: var(--red);
+}
+
+.status-badge--overdue .status-badge__dot {
+  background: var(--red);
+}
+
+/* ─── Mark as Cleaned button ─── */
+
+.btn-mark-clean {
+  padding: 6px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.btn-mark-clean:hover {
+  border-color: var(--orange);
+  color: var(--orange);
+  background: var(--orange-tint);
+}
+
+.btn-mark-clean:active {
+  transform: scale(0.97);
+}
+
+/* ─── Employee section ─── */
+
+.employee-section {
+  margin-top: 28px;
+}
+
+/* ─── Alert banner ─── */
+
+.alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--red-tint);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--red);
+  margin-bottom: 20px;
+}
+
+.alert-banner__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+  flex-shrink: 0;
+}
+
+/* ─── Table actions cell ─── */
+
+.table-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ─── Report Issue button ─── */
+
+.btn-report-issue {
+  padding: 6px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.btn-report-issue:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: var(--amber-tint);
+}
+
+.btn-report-issue.reported {
+  background: var(--red-tint);
+  border-color: rgba(220, 38, 38, 0.3);
+  color: var(--red);
+}
+
+.btn-report-issue:active {
+  transform: scale(0.97);
+}
+
+/* ─── Role badge ─── */
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.role-badge--manager {
+  background: var(--orange-tint);
+  border-color: rgba(232, 89, 12, 0.2);
+  color: var(--orange);
+}
+
+/* ─── Task count ─── */
+
+.task-count {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.task-count--active {
+  color: var(--amber);
+  font-weight: 700;
+}
+
+/* ─── Mobile: table rows become cards ─── */
+
+@media (max-width: 767px) {
+  .machine-table,
+  .machine-table thead,
+  .machine-table tbody,
+  .machine-table th,
+  .machine-table td,
+  .machine-table tr {
+    display: block;
+    width: 100%;
+  }
+
+  .machine-table thead {
+    display: none;
+  }
+
+  .machine-table tbody tr {
+    padding: 16px 20px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .machine-table tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .machine-table tbody tr:hover {
+    background: inherit;
+  }
+
+  .machine-table td {
+    padding: 2px 0;
+    border-bottom: none;
+    font-size: 14px;
+  }
+
+  .machine-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+    margin-top: 12px;
+  }
+
+  .machine-table td:first-child {
+    margin-top: 0;
+  }
+
+  .machine-table td:last-child {
+    padding-top: 14px;
+  }
+
+  .btn-mark-clean,
+  .btn-report-issue {
+    width: 100%;
+    text-align: center;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}
