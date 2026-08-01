@@ -22,7 +22,7 @@ const NAV_ITEMS: {
 }[] = [
   { icon: '▦', label: 'Overview', path: '/dashboard' },
   { icon: '⊙', label: 'Machines', path: '/dashboard' },
-  { icon: '👥', label: 'Employees', path: '/dashboard', minRole: 'admin' },
+  { icon: '👥', label: 'Employees', path: '/employees', minRole: 'admin' },
   { icon: '☰', label: 'Reports', path: '/dashboard' },
 ];
 
@@ -33,6 +33,11 @@ export default function Sidebar({ open, onClose, userRole }: Props) {
   const visibleItems = NAV_ITEMS.filter(
     item => !item.minRole || userRank >= ROLE_RANK[item.minRole]
   );
+
+  const isActive = (item: { label: string; path: string }) =>
+    location.pathname === '/employees'
+      ? item.path === '/employees'
+      : location.pathname === item.path && item.label === 'Overview';
 
   return (
     <aside className={`sidebar${open ? ' open' : ''}`} aria-label="Sidebar">
@@ -50,9 +55,7 @@ export default function Sidebar({ open, onClose, userRole }: Props) {
             key={item.label}
             to={item.path}
             className={`sidebar__nav-item${
-              location.pathname === item.path && item.label === 'Overview'
-                ? ' active'
-                : ''
+              isActive(item) ? ' active' : ''
             }`}
             onClick={onClose}
           >
