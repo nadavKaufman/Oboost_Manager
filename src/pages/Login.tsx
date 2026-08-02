@@ -17,7 +17,8 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setSubmitting(false);
     if (error) {
-      setError(error.message);
+      if (import.meta.env.DEV) console.error('[oboost] login error:', error.message);
+      setError('Incorrect email or password. Please try again.');
     } else {
       navigate('/dashboard');
     }

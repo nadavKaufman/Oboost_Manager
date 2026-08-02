@@ -73,7 +73,9 @@ export type Database = {
           id:                   string;
           name:                 string;
           location:             string;
+          address:              string;
           model:                string;
+          image_url:            string | null;
           fault_status:         FaultStatus;
           maintenance_notes:    string;
           last_cleaned_at:      string | null;
@@ -87,7 +89,9 @@ export type Database = {
           id?:                   string;
           name:                  string;
           location?:             string;
+          address?:              string;
           model?:                string;
+          image_url?:            string | null;
           fault_status?:         FaultStatus;
           maintenance_notes?:    string;
           last_cleaned_at?:      string | null;
@@ -98,7 +102,9 @@ export type Database = {
         Update: {
           name?:                 string;
           location?:             string;
+          address?:              string;
           model?:                string;
+          image_url?:            string | null;
           fault_status?:         FaultStatus;
           maintenance_notes?:    string;
           last_cleaned_at?:      string | null;
@@ -163,6 +169,7 @@ export type Database = {
           description:      string;
           severity:         ReportSeverity;
           status:           ReportStatus;
+          photo_url:        string | null;
           resolved_by:      string | null;
           resolved_at:      string | null;
           resolution_notes: string | null;
@@ -176,12 +183,14 @@ export type Database = {
           description?: string;
           severity?:    ReportSeverity;
           status?:      ReportStatus;
+          photo_url?:   string | null;
         };
         Update: {
           fault_type?:       string;
           description?:      string;
           severity?:         ReportSeverity;
           status?:           ReportStatus;
+          photo_url?:        string | null;
           resolved_by?:      string | null;
           resolved_at?:      string | null;
           resolution_notes?: string | null;
@@ -197,6 +206,67 @@ export type Database = {
           new_status: string;
           changed_at: string;
           reason:     string;
+        };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      inventory_items: {
+        Row: {
+          id:          string;
+          item_type:   'orange_carton' | 'spare_part';
+          name:        string;
+          description: string;
+          unit:        string;
+          is_active:   boolean;
+          image_url:   string | null;
+          created_at:  string;
+          updated_at:  string;
+        };
+        Insert: {
+          item_type:    'spare_part';
+          name:         string;
+          description?: string;
+          unit?:        string;
+          is_active?:   boolean;
+          image_url?:   string | null;
+        };
+        Update: {
+          name?:        string;
+          description?: string;
+          unit?:        string;
+          is_active?:   boolean;
+          image_url?:   string | null;
+        };
+        Relationships: [];
+      };
+      inventory_transactions: {
+        Row: {
+          id:               string;
+          item_id:          string;
+          transaction_type: InventoryTransactionType;
+          quantity:         number;
+          recorded_by:      string;
+          notes:            string;
+          created_at:       string;
+        };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      tasks: {
+        Row: {
+          id:               string;
+          title:            string;
+          description:      string;
+          assigned_to:      string;
+          assigned_by:      string;
+          machine_id:       string | null;
+          due_date:         string | null;
+          status:           TaskStatus;
+          completion_notes: string | null;
+          created_at:       string;
+          completed_at:     string | null;
         };
         Insert: Record<string, never>;
         Update: Record<string, never>;
@@ -242,12 +312,18 @@ export interface EmployeeRecord {
   job_title:    string;
   role:         UserRole;
   created_at:   string;
+  photoUrl:     string | null;
 }
 
-export async function getEmployees(): Promise<EmployeeRecord[]> {
+export interface GetEmployeesResult {
+  employees: EmployeeRecord[];
+  error: string | null;
+}
+
+export async function getEmployees(): Promise<GetEmployeesResult> {
   const result = await supabase
     .from('employees')
-    .select('employee_id, first_name, last_name, email, phone_number, hire_date, job_title, created_at, profiles (role)')
+    .select('employee_id, first_name, last_name, email, phone_number, hire_date, job_title, created_at, profiles (role, avatar_url)')
     .order('first_name');
 
   type EmpRow = {
@@ -259,31 +335,33 @@ export async function getEmployees(): Promise<EmployeeRecord[]> {
     hire_date:    string | null;
     job_title:    string;
     created_at:   string;
-    profiles:     { role: UserRole } | null;
+    profiles:     { role: UserRole; avatar_url: string | null } | null;
   };
   const data = result.data as EmpRow[] | null;
 
   if (result.error) {
-    console.error('[oboost] Supabase employees error:', result.error.message);
-    return [];
+    if (import.meta.env.DEV) console.error('[oboost] Supabase employees error:', result.error.message);
+    return { employees: [], error: withDevDetail('Could not load employees. Please try again.', result.error.message) };
   }
   if (!data || data.length === 0) {
-    console.log('[oboost] Employees loaded: 0');
-    return [];
+    return { employees: [], error: null };
   }
-  console.log('[oboost] Employees loaded:', data.length);
 
-  return data.map(row => ({
-    employee_id:  row.employee_id,
-    first_name:   row.first_name,
-    last_name:    row.last_name,
-    email:        row.email,
-    phone_number: row.phone_number,
-    hire_date:    row.hire_date,
-    job_title:    row.job_title,
-    created_at:   row.created_at,
-    role:         row.profiles?.role ?? 'employee',
-  }));
+  return {
+    employees: data.map(row => ({
+      employee_id:  row.employee_id,
+      first_name:   row.first_name,
+      last_name:    row.last_name,
+      email:        row.email,
+      phone_number: row.phone_number,
+      hire_date:    row.hire_date,
+      job_title:    row.job_title,
+      created_at:   row.created_at,
+      photoUrl:     row.profiles?.avatar_url ?? null,
+      role:         row.profiles?.role ?? 'employee',
+    })),
+    error: null,
+  };
 }
 
 export interface CreateEmployeeInput {
@@ -293,7 +371,6 @@ export interface CreateEmployeeInput {
   phoneNumber: string;
   hireDate:    string | null;
   jobTitle:    string;
-  role:        UserRole;
   password:    string;
 }
 
@@ -308,8 +385,11 @@ export async function createEmployee(
     },
   });
 
-  if (error) return { error: error.message };
-  if (!data.user) return { error: 'No user was created.' };
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] createEmployee signUp error:', error.message);
+    return { error: 'Could not create the employee account. Please check the details and try again.' };
+  }
+  if (!data.user) return { error: 'Could not create the employee account. Please try again.' };
 
   const { error: empError } = await supabase.from('employees').insert({
     employee_id:  data.user.id,
@@ -320,19 +400,23 @@ export async function createEmployee(
     hire_date:    input.hireDate,
     job_title:    input.jobTitle,
   });
-  if (empError) return { error: empError.message };
+  if (empError) {
+    if (import.meta.env.DEV) console.error('[oboost] createEmployee insert error:', empError.message);
+    return { error: 'Account created, but saving employee details failed. Please try again.' };
+  }
 
-  const { error: roleError } = await supabase
-    .from('profiles')
-    .update({ role: input.role })
-    .eq('id', data.user.id);
-  if (roleError) return { error: roleError.message };
-
+  // No role assignment here: handle_new_user already creates the profile
+  // with the default 'employee' role, and Add Employee must never be able
+  // to create a manager.
   return { error: null };
 }
 
-export async function getMachines(): Promise<Machine[]> {
-  console.log('[oboost] Fetching machines...');
+export interface GetMachinesResult {
+  machines: Machine[];
+  error: string | null;
+}
+
+export async function getMachines(): Promise<GetMachinesResult> {
   const result = await supabase
     .from('machines')
     .select('*')
@@ -345,26 +429,48 @@ export async function getMachines(): Promise<Machine[]> {
   const data = result.data as MachineRow[] | null;
 
   if (result.error) {
-    console.error('[oboost] Supabase machines error:', result.error.message);
-    return [];
+    if (import.meta.env.DEV) console.error('[oboost] Supabase machines error:', result.error.message);
+    return { machines: [], error: 'Could not load machines. Please try again.' };
   }
   if (!data || data.length === 0) {
-    console.log('[oboost] Machines loaded: 0');
-    return [];
+    return { machines: [], error: null };
   }
-  console.log('[oboost] Machines loaded:', data.length);
 
-  return data.map(row => ({
-    id: row.id,
-    name: row.name,
-    location: row.location,
-    model: row.model,
-    lastCleaned: row.last_cleaned_at?.split('T')[0] ?? '2000-01-01',
-    cleaningIntervalDays: 21,
-    assignedEmployeeId: '',
-    faultStatus: row.fault_status,
-    maintenanceNotes: row.maintenance_notes,
-  }));
+  const machineIds = data.map(row => row.id);
+  const assignResult = await supabase
+    .from('machine_assignments')
+    .select('machine_id, user_id')
+    .in('machine_id', machineIds)
+    .eq('is_active', true);
+
+  type AssignmentRow = { machine_id: string; user_id: string };
+  const assignedByMachine = new Map<string, string[]>();
+  ((assignResult.data as AssignmentRow[] | null) ?? []).forEach(row => {
+    const list = assignedByMachine.get(row.machine_id) ?? [];
+    list.push(row.user_id);
+    assignedByMachine.set(row.machine_id, list);
+  });
+
+  return {
+    machines: data.map(row => ({
+      id: row.id,
+      name: row.name,
+      location: row.location,
+      address: row.address,
+      model: row.model,
+      imageUrl: row.image_url,
+      isActive: row.is_active,
+      lastCleaned: row.last_cleaned_at ? row.last_cleaned_at.split('T')[0] : null,
+      cleaningIntervalDays: 21,
+      nextCleaningDueAt: row.next_cleaning_due_at ?? '2000-01-01',
+      assignedEmployeeIds: assignedByMachine.get(row.id) ?? [],
+      faultStatus: row.fault_status,
+      maintenanceNotes: row.maintenance_notes,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })),
+    error: null,
+  };
 }
 
 export async function markMachineWorking(machineId: string): Promise<{ error: string | null }> {
@@ -375,8 +481,1004 @@ export async function markMachineWorking(machineId: string): Promise<{ error: st
     .eq('id', machineId);
 
   if (error) {
-    console.error('[oboost] markMachineWorking error:', error.message);
+    if (import.meta.env.DEV) console.error('[oboost] markMachineWorking error:', error.message);
     return { error: 'Could not update the machine. Please try again.' };
   }
   return { error: null };
+}
+
+export async function markMachineCleaned(machineId: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('mark_machine_cleaned', { p_machine_id: machineId } as never);
+
+  if (error) {
+    if (import.meta.env.DEV) {
+      console.error('[oboost] markMachineCleaned error:', error.message);
+    }
+    return { error: 'Could not mark the machine as cleaned. Please try again.' };
+  }
+  return { error: null };
+}
+
+// ---------------------------------------------------------------------------
+// Machine details, assignments, editing (Phase B)
+// ---------------------------------------------------------------------------
+
+export interface MaintenanceReportRecord {
+  id: string;
+  reportedByName: string;
+  reportedAt: string;
+  description: string;
+  faultType: string;
+  severity: ReportSeverity;
+  status: ReportStatus;
+  photoUrl: string | null;
+  resolvedByName: string | null;
+  resolvedAt: string | null;
+  resolutionNotes: string | null;
+}
+
+export interface MachineDetails {
+  machine: Machine;
+  assignedEmployees: { id: string; name: string }[];
+  cleaningHistory: { id: string; cleanedAt: string; cleanedByName: string }[];
+  malfunctionHistory: MaintenanceReportRecord[];
+}
+
+export async function getMachineDetails(
+  machineId: string
+): Promise<{ details: MachineDetails | null; error: string | null }> {
+  const [machineRes, assignRes, cleaningRes, reportsRes] = await Promise.all([
+    supabase.from('machines').select('*').eq('id', machineId).single(),
+    supabase.from('machine_assignments').select('user_id').eq('machine_id', machineId).eq('is_active', true),
+    supabase.from('cleaning_logs').select('id, cleaned_by, cleaned_at').eq('machine_id', machineId).order('cleaned_at', { ascending: false }),
+    supabase.from('maintenance_reports').select('*').eq('machine_id', machineId).order('reported_at', { ascending: false }),
+  ]);
+
+  if (machineRes.error || !machineRes.data) {
+    if (import.meta.env.DEV && machineRes.error) console.error('[oboost] getMachineDetails error:', machineRes.error.message);
+    return { details: null, error: 'Machine not found, or you do not have access to it.' };
+  }
+
+  type MachineRow = Database['public']['Tables']['machines']['Row'];
+  const machineRow = machineRes.data as MachineRow;
+
+  type AssignRow = { user_id: string };
+  const assignRows = (assignRes.data as AssignRow[] | null) ?? [];
+
+  type CleaningRow = { id: string; cleaned_by: string; cleaned_at: string };
+  const cleaningRows = (cleaningRes.data as CleaningRow[] | null) ?? [];
+
+  type ReportRow = Database['public']['Tables']['maintenance_reports']['Row'];
+  const reportRows = (reportsRes.data as ReportRow[] | null) ?? [];
+
+  const userIds = new Set<string>();
+  assignRows.forEach(r => userIds.add(r.user_id));
+  cleaningRows.forEach(r => userIds.add(r.cleaned_by));
+  reportRows.forEach(r => {
+    userIds.add(r.reported_by);
+    if (r.resolved_by) userIds.add(r.resolved_by);
+  });
+
+  let nameById = new Map<string, string>();
+  if (userIds.size > 0) {
+    const profilesRes = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', Array.from(userIds));
+    type ProfileRow = { id: string; full_name: string };
+    nameById = new Map(
+      ((profilesRes.data as ProfileRow[] | null) ?? []).map(p => [p.id, p.full_name || '—'])
+    );
+  }
+  const nameFor = (id: string | null) => (id ? nameById.get(id) ?? '—' : '—');
+
+  const machine: Machine = {
+    id: machineRow.id,
+    name: machineRow.name,
+    location: machineRow.location,
+    address: machineRow.address,
+    model: machineRow.model,
+    imageUrl: machineRow.image_url,
+    isActive: machineRow.is_active,
+    lastCleaned: machineRow.last_cleaned_at ? machineRow.last_cleaned_at.split('T')[0] : null,
+    cleaningIntervalDays: 21,
+    nextCleaningDueAt: machineRow.next_cleaning_due_at ?? '2000-01-01',
+    assignedEmployeeIds: assignRows.map(r => r.user_id),
+    faultStatus: machineRow.fault_status,
+    maintenanceNotes: machineRow.maintenance_notes,
+    createdAt: machineRow.created_at,
+    updatedAt: machineRow.updated_at,
+  };
+
+  return {
+    details: {
+      machine,
+      assignedEmployees: assignRows.map(r => ({ id: r.user_id, name: nameFor(r.user_id) })),
+      cleaningHistory: cleaningRows.map(r => ({
+        id: r.id,
+        cleanedAt: r.cleaned_at,
+        cleanedByName: nameFor(r.cleaned_by),
+      })),
+      malfunctionHistory: reportRows.map(r => ({
+        id: r.id,
+        reportedByName: nameFor(r.reported_by),
+        reportedAt: r.reported_at,
+        description: r.description,
+        faultType: r.fault_type,
+        severity: r.severity,
+        status: r.status,
+        photoUrl: r.photo_url,
+        resolvedByName: r.resolved_by ? nameFor(r.resolved_by) : null,
+        resolvedAt: r.resolved_at,
+        resolutionNotes: r.resolution_notes,
+      })),
+    },
+    error: null,
+  };
+}
+
+export interface UpdateMachineFields {
+  name?: string;
+  address?: string;
+  location?: string;
+  model?: string;
+  maintenanceNotes?: string;
+  isActive?: boolean;
+}
+
+export async function updateMachine(
+  machineId: string,
+  fields: UpdateMachineFields
+): Promise<{ error: string | null }> {
+  const payload: Database['public']['Tables']['machines']['Update'] = {};
+  if (fields.name !== undefined) payload.name = fields.name;
+  if (fields.address !== undefined) payload.address = fields.address;
+  if (fields.location !== undefined) payload.location = fields.location;
+  if (fields.model !== undefined) payload.model = fields.model;
+  if (fields.maintenanceNotes !== undefined) payload.maintenance_notes = fields.maintenanceNotes;
+  if (fields.isActive !== undefined) payload.is_active = fields.isActive;
+
+  const { error } = await (supabase.from('machines') as any).update(payload).eq('id', machineId);
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] updateMachine error:', error.message);
+    return { error: 'Could not update the machine. Please try again.' };
+  }
+  return { error: null };
+}
+
+export interface CreateMachineInput {
+  name: string;
+  address: string;
+  location: string;
+  model: string;
+  maintenanceNotes: string;
+  isActive: boolean;
+}
+
+export async function createMachine(input: CreateMachineInput): Promise<{ id: string | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from('machines')
+    .insert({
+      name: input.name,
+      address: input.address,
+      location: input.location,
+      model: input.model,
+      maintenance_notes: input.maintenanceNotes,
+      is_active: input.isActive,
+    })
+    .select('id')
+    .single();
+
+  if (error || !data) {
+    if (import.meta.env.DEV && error) console.error('[oboost] createMachine error:', error.message);
+    return { id: null, error: 'Could not create the machine. Please try again.' };
+  }
+  return { id: (data as { id: string }).id, error: null };
+}
+
+export async function assignEmployeeToMachine(machineId: string, userId: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('assign_employee_to_machine', {
+    p_machine_id: machineId,
+    p_user_id: userId,
+  } as never);
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] assignEmployeeToMachine error:', error.message);
+    return { error: 'Could not assign this employee. Please try again.' };
+  }
+  return { error: null };
+}
+
+export async function unassignEmployeeFromMachine(machineId: string, userId: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('unassign_employee_from_machine', {
+    p_machine_id: machineId,
+    p_user_id: userId,
+  } as never);
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] unassignEmployeeFromMachine error:', error.message);
+    return { error: 'Could not unassign this employee. Please try again.' };
+  }
+  return { error: null };
+}
+
+// ---------------------------------------------------------------------------
+// Image uploads — Supabase Storage, one shared bucket (Phase B / D)
+// ---------------------------------------------------------------------------
+
+const MEDIA_BUCKET = 'oboost-media';
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+function validateImageFile(file: File): string | null {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return 'Please choose a JPEG, PNG, WEBP, or GIF image.';
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    return 'Image must be smaller than 5MB.';
+  }
+  return null;
+}
+
+function safeFileName(file: File): string {
+  const ext = (file.name.split('.').pop() ?? 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+}
+
+// In DEV, surface the real Supabase error inline so a failure (missing
+// bucket, missing Storage policy, missing table grant, etc.) is visible
+// without opening devtools. PROD always keeps the generic message.
+function withDevDetail(userMessage: string, detail: string): string {
+  return import.meta.env.DEV ? `${userMessage} (dev: ${detail})` : userMessage;
+}
+
+export async function uploadMachineImage(
+  machineId: string,
+  file: File
+): Promise<{ url: string | null; error: string | null }> {
+  const validationError = validateImageFile(file);
+  if (validationError) return { url: null, error: validationError };
+
+  const path = `machines/${machineId}/${safeFileName(file)}`;
+  const { error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file);
+  if (uploadError) {
+    if (import.meta.env.DEV) console.error('[oboost] uploadMachineImage error:', uploadError.message);
+    return { url: null, error: withDevDetail('Could not upload the image. Please try again.', uploadError.message) };
+  }
+
+  const { data } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path);
+  const { error: imageSaveError } = await (supabase.from('machines') as any)
+    .update({ image_url: data.publicUrl })
+    .eq('id', machineId);
+
+  if (imageSaveError) {
+    if (import.meta.env.DEV) console.error('[oboost] uploadMachineImage save error:', imageSaveError.message);
+    return {
+      url: null,
+      error: withDevDetail('Image uploaded, but saving it to the machine failed. Please try again.', imageSaveError.message),
+    };
+  }
+
+  return { url: data.publicUrl, error: null };
+}
+
+export async function uploadEmployeePhoto(
+  employeeId: string,
+  file: File
+): Promise<{ url: string | null; error: string | null }> {
+  const validationError = validateImageFile(file);
+  if (validationError) return { url: null, error: validationError };
+
+  const path = `employees/${employeeId}/${safeFileName(file)}`;
+  const { error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file);
+  if (uploadError) {
+    if (import.meta.env.DEV) console.error('[oboost] uploadEmployeePhoto error:', uploadError.message);
+    return { url: null, error: withDevDetail('Could not upload the photo. Please try again.', uploadError.message) };
+  }
+
+  const { data } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path);
+  const { error: saveError } = await supabase
+    .from('profiles')
+    .update({ avatar_url: data.publicUrl })
+    .eq('id', employeeId);
+
+  if (saveError) {
+    if (import.meta.env.DEV) console.error('[oboost] uploadEmployeePhoto save error:', saveError.message);
+    return {
+      url: null,
+      error: withDevDetail('Photo uploaded, but saving it to the employee failed. Please try again.', saveError.message),
+    };
+  }
+
+  return { url: data.publicUrl, error: null };
+}
+
+export async function uploadMalfunctionPhoto(file: File): Promise<{ url: string | null; error: string | null }> {
+  const validationError = validateImageFile(file);
+  if (validationError) return { url: null, error: validationError };
+
+  const { data: userData } = await supabase.auth.getUser();
+  const uid = userData.user?.id;
+  if (!uid) return { url: null, error: 'Not authenticated.' };
+
+  const path = `malfunctions/${uid}/${safeFileName(file)}`;
+  const { error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file);
+  if (uploadError) {
+    if (import.meta.env.DEV) console.error('[oboost] uploadMalfunctionPhoto error:', uploadError.message);
+    return { url: null, error: withDevDetail('Could not upload the photo. Please try again.', uploadError.message) };
+  }
+
+  const { data } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path);
+  return { url: data.publicUrl, error: null };
+}
+
+// ---------------------------------------------------------------------------
+// Malfunction reporting + resolution (Phase D)
+// ---------------------------------------------------------------------------
+
+export interface ReportMalfunctionInput {
+  machineId: string;
+  description: string;
+  faultType: string;
+  severity: ReportSeverity;
+  photoUrl: string | null;
+}
+
+export async function reportMachineMalfunction(input: ReportMalfunctionInput): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('report_machine_malfunction', {
+    p_machine_id: input.machineId,
+    p_description: input.description,
+    p_fault_type: input.faultType,
+    p_severity: input.severity,
+    p_photo_url: input.photoUrl,
+  } as never);
+
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] reportMachineMalfunction error:', error.message);
+    return { error: 'Could not report the malfunction. Please try again.' };
+  }
+  return { error: null };
+}
+
+export async function markMaintenanceReportInProgress(reportId: string): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('maintenance_reports')
+    .update({ status: 'in_progress' })
+    .eq('id', reportId);
+
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] markMaintenanceReportInProgress error:', error.message);
+    return { error: 'Could not update the report. Please try again.' };
+  }
+  return { error: null };
+}
+
+export async function resolveMaintenanceReport(
+  reportId: string,
+  resolutionNotes: string
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('resolve_maintenance_report', {
+    p_report_id: reportId,
+    p_resolution_notes: resolutionNotes || null,
+  } as never);
+
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] resolveMaintenanceReport error:', error.message);
+    return { error: 'Could not resolve the report. Please try again.' };
+  }
+  return { error: null };
+}
+
+// ---------------------------------------------------------------------------
+// Orange carton inventory (Phase E)
+// ---------------------------------------------------------------------------
+
+export type InventoryTransactionType = 'delivery' | 'withdrawal' | 'adjustment';
+
+export interface InventoryTransactionRecord {
+  id: string;
+  type: InventoryTransactionType;
+  quantity: number;
+  recordedByName: string;
+  notes: string;
+  createdAt: string;
+}
+
+export interface OrangeInventoryData {
+  currentStock: number;
+  transactions: InventoryTransactionRecord[];
+}
+
+export async function getOrangeInventory(limit?: number): Promise<{ data: OrangeInventoryData | null; error: string | null }> {
+  const [stockRes, itemRes] = await Promise.all([
+    supabase.rpc('get_orange_stock' as never),
+    supabase.from('inventory_items').select('id').eq('item_type', 'orange_carton').limit(1).single(),
+  ]);
+
+  if (stockRes.error || itemRes.error || !itemRes.data) {
+    if (import.meta.env.DEV) {
+      if (stockRes.error) console.error('[oboost] getOrangeInventory stock error:', stockRes.error.message);
+      if (itemRes.error) console.error('[oboost] getOrangeInventory item error:', itemRes.error.message);
+    }
+    return { data: null, error: 'Could not load inventory. Please try again.' };
+  }
+
+  const itemId = (itemRes.data as { id: string }).id;
+  const currentStock = (stockRes.data as number | null) ?? 0;
+
+  let txnQuery = supabase
+    .from('inventory_transactions')
+    .select('id, transaction_type, quantity, recorded_by, notes, created_at')
+    .eq('item_id', itemId)
+    .order('created_at', { ascending: false });
+  if (limit !== undefined) txnQuery = txnQuery.limit(limit);
+  const txnRes = await txnQuery;
+
+  type TxnRow = {
+    id: string;
+    transaction_type: InventoryTransactionType;
+    quantity: number;
+    recorded_by: string;
+    notes: string;
+    created_at: string;
+  };
+  const rows = (txnRes.data as TxnRow[] | null) ?? [];
+
+  if (txnRes.error) {
+    if (import.meta.env.DEV) console.error('[oboost] getOrangeInventory transactions error:', txnRes.error.message);
+    return { data: null, error: 'Could not load inventory. Please try again.' };
+  }
+
+  const userIds = Array.from(new Set(rows.map(r => r.recorded_by)));
+  let nameById = new Map<string, string>();
+  if (userIds.length > 0) {
+    const profilesRes = await supabase.from('profiles').select('id, full_name').in('id', userIds);
+    type ProfileRow = { id: string; full_name: string };
+    nameById = new Map(((profilesRes.data as ProfileRow[] | null) ?? []).map(p => [p.id, p.full_name || '—']));
+  }
+
+  return {
+    data: {
+      currentStock,
+      transactions: rows.map(r => ({
+        id: r.id,
+        type: r.transaction_type,
+        quantity: r.quantity,
+        recordedByName: nameById.get(r.recorded_by) ?? '—',
+        notes: r.notes,
+        createdAt: r.created_at,
+      })),
+    },
+    error: null,
+  };
+}
+
+export async function recordOrangeDelivery(quantity: number, notes: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('record_orange_delivery', { p_quantity: quantity, p_notes: notes } as never);
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] recordOrangeDelivery error:', error.message);
+    return { error: 'Could not record the delivery. Please try again.' };
+  }
+  return { error: null };
+}
+
+export async function recordOrangeWithdrawal(quantity: number, notes: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('record_orange_withdrawal', { p_quantity: quantity, p_notes: notes } as never);
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] recordOrangeWithdrawal error:', error.message);
+    if (error.message.includes('Insufficient stock')) return { error: error.message };
+    return { error: 'Could not record the withdrawal. Please try again.' };
+  }
+  return { error: null };
+}
+
+export async function recordOrangeAdjustment(quantity: number, notes: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('record_orange_adjustment', { p_quantity: quantity, p_notes: notes } as never);
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] recordOrangeAdjustment error:', error.message);
+    return { error: 'Could not record the adjustment. Please try again.' };
+  }
+  return { error: null };
+}
+
+// ---------------------------------------------------------------------------
+// Spare parts inventory (Phase F) — same shared tables as orange cartons
+// ---------------------------------------------------------------------------
+
+export interface SparePartRecord {
+  id: string;
+  name: string;
+  description: string;
+  unit: string;
+  isActive: boolean;
+  currentStock: number;
+}
+
+export async function getSpareParts(): Promise<{ parts: SparePartRecord[]; error: string | null }> {
+  const itemsRes = await supabase
+    .from('inventory_items')
+    .select('id, name, description, unit, is_active')
+    .eq('item_type', 'spare_part')
+    .order('name');
+
+  type ItemRow = { id: string; name: string; description: string; unit: string; is_active: boolean };
+  const items = (itemsRes.data as ItemRow[] | null) ?? [];
+
+  if (itemsRes.error) {
+    if (import.meta.env.DEV) console.error('[oboost] getSpareParts error:', itemsRes.error.message);
+    return { parts: [], error: 'Could not load spare parts. Please try again.' };
+  }
+  if (items.length === 0) {
+    return { parts: [], error: null };
+  }
+
+  const stockResults = await Promise.all(
+    items.map(item => supabase.rpc('get_spare_part_stock', { p_item_id: item.id } as never))
+  );
+
+  return {
+    parts: items.map((item, i) => ({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      unit: item.unit,
+      isActive: item.is_active,
+      currentStock: (stockResults[i].data as number | null) ?? 0,
+    })),
+    error: null,
+  };
+}
+
+export interface CreateSparePartInput {
+  name: string;
+  description: string;
+  unit: string;
+}
+
+export async function createSparePart(input: CreateSparePartInput): Promise<{ error: string | null }> {
+  const { error } = await supabase.from('inventory_items').insert({
+    item_type: 'spare_part',
+    name: input.name,
+    description: input.description,
+    unit: input.unit || 'unit',
+  });
+
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] createSparePart error:', error.message);
+    return { error: 'Could not create the spare part. Please try again.' };
+  }
+  return { error: null };
+}
+
+export async function setSparePartActive(id: string, isActive: boolean): Promise<{ error: string | null }> {
+  const { error } = await supabase.from('inventory_items').update({ is_active: isActive }).eq('id', id);
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] setSparePartActive error:', error.message);
+    return { error: 'Could not update the spare part. Please try again.' };
+  }
+  return { error: null };
+}
+
+export interface SparePartTransactionRecord {
+  id: string;
+  itemName: string;
+  type: InventoryTransactionType;
+  quantity: number;
+  recordedByName: string;
+  notes: string;
+  createdAt: string;
+}
+
+export async function getSparePartTransactions(limit?: number): Promise<{ transactions: SparePartTransactionRecord[]; error: string | null }> {
+  const itemsRes = await supabase.from('inventory_items').select('id, name').eq('item_type', 'spare_part');
+  type ItemRow = { id: string; name: string };
+  const items = (itemsRes.data as ItemRow[] | null) ?? [];
+
+  if (itemsRes.error) {
+    if (import.meta.env.DEV) console.error('[oboost] getSparePartTransactions items error:', itemsRes.error.message);
+    return { transactions: [], error: 'Could not load spare parts history. Please try again.' };
+  }
+  if (items.length === 0) {
+    return { transactions: [], error: null };
+  }
+
+  const itemNameById = new Map(items.map(i => [i.id, i.name]));
+  const itemIds = items.map(i => i.id);
+
+  let txnQuery = supabase
+    .from('inventory_transactions')
+    .select('id, item_id, transaction_type, quantity, recorded_by, notes, created_at')
+    .in('item_id', itemIds)
+    .order('created_at', { ascending: false });
+  if (limit !== undefined) txnQuery = txnQuery.limit(limit);
+  const txnRes = await txnQuery;
+
+  type TxnRow = {
+    id: string;
+    item_id: string;
+    transaction_type: InventoryTransactionType;
+    quantity: number;
+    recorded_by: string;
+    notes: string;
+    created_at: string;
+  };
+  const rows = (txnRes.data as TxnRow[] | null) ?? [];
+
+  if (txnRes.error) {
+    if (import.meta.env.DEV) console.error('[oboost] getSparePartTransactions error:', txnRes.error.message);
+    return { transactions: [], error: 'Could not load spare parts history. Please try again.' };
+  }
+
+  const userIds = Array.from(new Set(rows.map(r => r.recorded_by)));
+  let nameById = new Map<string, string>();
+  if (userIds.length > 0) {
+    const profilesRes = await supabase.from('profiles').select('id, full_name').in('id', userIds);
+    type ProfileRow = { id: string; full_name: string };
+    nameById = new Map(((profilesRes.data as ProfileRow[] | null) ?? []).map(p => [p.id, p.full_name || '—']));
+  }
+
+  return {
+    transactions: rows.map(r => ({
+      id: r.id,
+      itemName: itemNameById.get(r.item_id) ?? '—',
+      type: r.transaction_type,
+      quantity: r.quantity,
+      recordedByName: nameById.get(r.recorded_by) ?? '—',
+      notes: r.notes,
+      createdAt: r.created_at,
+    })),
+    error: null,
+  };
+}
+
+export async function recordSparePartDelivery(itemId: string, quantity: number, notes: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('record_spare_part_delivery', {
+    p_item_id: itemId,
+    p_quantity: quantity,
+    p_notes: notes,
+  } as never);
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] recordSparePartDelivery error:', error.message);
+    return { error: 'Could not record the delivery. Please try again.' };
+  }
+  return { error: null };
+}
+
+export async function recordSparePartWithdrawal(itemId: string, quantity: number, notes: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('record_spare_part_withdrawal', {
+    p_item_id: itemId,
+    p_quantity: quantity,
+    p_notes: notes,
+  } as never);
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] recordSparePartWithdrawal error:', error.message);
+    if (error.message.includes('Insufficient stock')) return { error: error.message };
+    return { error: 'Could not record the withdrawal. Please try again.' };
+  }
+  return { error: null };
+}
+
+export async function recordSparePartAdjustment(itemId: string, quantity: number, notes: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('record_spare_part_adjustment', {
+    p_item_id: itemId,
+    p_quantity: quantity,
+    p_notes: notes,
+  } as never);
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] recordSparePartAdjustment error:', error.message);
+    return { error: 'Could not record the adjustment. Please try again.' };
+  }
+  return { error: null };
+}
+
+// ---------------------------------------------------------------------------
+// Employee tasks (Phase G)
+// ---------------------------------------------------------------------------
+
+export type TaskStatus = 'pending' | 'completed';
+
+export interface TaskRecord {
+  id: string;
+  title: string;
+  description: string;
+  assignedToId: string;
+  assignedToName: string;
+  assignedByName: string;
+  machineId: string | null;
+  machineName: string | null;
+  dueDate: string | null;
+  status: TaskStatus;
+  completionNotes: string | null;
+  completionPhotoUrl: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export async function getTasks(limit?: number): Promise<{ tasks: TaskRecord[]; error: string | null }> {
+  let tasksQuery = supabase
+    .from('tasks')
+    .select('id, title, description, assigned_to, assigned_by, machine_id, due_date, status, completion_notes, completion_photo_url, created_at, completed_at')
+    .order('created_at', { ascending: false });
+  if (limit !== undefined) tasksQuery = tasksQuery.limit(limit);
+  const tasksRes = await tasksQuery;
+
+  type TaskRow = {
+    id: string;
+    title: string;
+    description: string;
+    assigned_to: string;
+    assigned_by: string;
+    machine_id: string | null;
+    due_date: string | null;
+    status: TaskStatus;
+    completion_notes: string | null;
+    completion_photo_url: string | null;
+    created_at: string;
+    completed_at: string | null;
+  };
+  const rows = (tasksRes.data as TaskRow[] | null) ?? [];
+
+  if (tasksRes.error) {
+    if (import.meta.env.DEV) console.error('[oboost] getTasks error:', tasksRes.error.message);
+    return { tasks: [], error: withDevDetail('Could not load tasks. Please try again.', tasksRes.error.message) };
+  }
+  if (rows.length === 0) {
+    return { tasks: [], error: null };
+  }
+
+  const userIds = Array.from(new Set([...rows.map(r => r.assigned_to), ...rows.map(r => r.assigned_by)]));
+  let nameById = new Map<string, string>();
+  if (userIds.length > 0) {
+    const profilesRes = await supabase.from('profiles').select('id, full_name').in('id', userIds);
+    type ProfileRow = { id: string; full_name: string };
+    nameById = new Map(((profilesRes.data as ProfileRow[] | null) ?? []).map(p => [p.id, p.full_name || '—']));
+  }
+
+  const machineIds = Array.from(new Set(rows.map(r => r.machine_id).filter((id): id is string => !!id)));
+  let machineNameById = new Map<string, string>();
+  if (machineIds.length > 0) {
+    const machinesRes = await supabase.from('machines').select('id, name').in('id', machineIds);
+    type MachineNameRow = { id: string; name: string };
+    machineNameById = new Map(((machinesRes.data as MachineNameRow[] | null) ?? []).map(m => [m.id, m.name]));
+  }
+
+  return {
+    tasks: rows.map(r => ({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      assignedToId: r.assigned_to,
+      assignedToName: nameById.get(r.assigned_to) ?? '—',
+      assignedByName: nameById.get(r.assigned_by) ?? '—',
+      machineId: r.machine_id,
+      machineName: r.machine_id ? machineNameById.get(r.machine_id) ?? '—' : null,
+      dueDate: r.due_date,
+      status: r.status,
+      completionNotes: r.completion_notes,
+      completionPhotoUrl: r.completion_photo_url,
+      createdAt: r.created_at,
+      completedAt: r.completed_at,
+    })),
+    error: null,
+  };
+}
+
+export interface CreateTaskInput {
+  title: string;
+  description: string;
+  assignedTo: string;
+  machineId: string | null;
+  dueDate: string | null;
+}
+
+export async function createTask(input: CreateTaskInput): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('create_task', {
+    p_title: input.title,
+    p_assigned_to: input.assignedTo,
+    p_description: input.description,
+    p_machine_id: input.machineId,
+    p_due_date: input.dueDate,
+  } as never);
+
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] createTask error:', error.message);
+    if (
+      error.message.includes('Not authorized')
+      || error.message.includes('Task title is required')
+      || error.message.includes('Assigned employee not found')
+    ) {
+      return { error: error.message };
+    }
+    return { error: withDevDetail('Could not create the task. Please try again.', error.message) };
+  }
+  return { error: null };
+}
+
+export async function completeTask(
+  taskId: string,
+  completionNotes: string,
+  completionPhotoUrl: string | null = null
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('complete_task', {
+    p_task_id: taskId,
+    p_completion_notes: completionNotes || null,
+    p_completion_photo_url: completionPhotoUrl,
+  } as never);
+
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] completeTask error:', error.message);
+    return { error: 'Could not complete the task. Please try again.' };
+  }
+  return { error: null };
+}
+
+export async function uploadTaskCompletionPhoto(file: File): Promise<{ url: string | null; error: string | null }> {
+  const validationError = validateImageFile(file);
+  if (validationError) return { url: null, error: validationError };
+
+  const { data: userData } = await supabase.auth.getUser();
+  const uid = userData.user?.id;
+  if (!uid) return { url: null, error: 'Not authenticated.' };
+
+  const path = `tasks/${uid}/${safeFileName(file)}`;
+  const { error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file);
+  if (uploadError) {
+    if (import.meta.env.DEV) console.error('[oboost] uploadTaskCompletionPhoto error:', uploadError.message);
+    return { url: null, error: withDevDetail('Could not upload the photo. Please try again.', uploadError.message) };
+  }
+
+  const { data } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path);
+  return { url: data.publicUrl, error: null };
+}
+
+// ---------------------------------------------------------------------------
+// Reports / activity history (Phase H)
+//
+// RLS on cleaning_logs / maintenance_reports scopes SELECT to elevated
+// users or anyone assigned to the machine — broader than "my own
+// actions". mineOnly here adds an explicit cleaned_by / reported_by
+// filter on top of that so "My Activity" shows only what the current
+// user actually did, not everything on machines they merely share.
+// Manager (mineOnly = false) relies on RLS alone to see everything.
+// ---------------------------------------------------------------------------
+
+export interface CleaningHistoryRecord {
+  id: string;
+  machineName: string;
+  cleanedByName: string;
+  cleanedAt: string;
+}
+
+export async function getCleaningHistory(mineOnly: boolean, limit?: number): Promise<{ records: CleaningHistoryRecord[]; error: string | null }> {
+  let query = supabase
+    .from('cleaning_logs')
+    .select('id, machine_id, cleaned_by, cleaned_at')
+    .order('cleaned_at', { ascending: false });
+
+  if (mineOnly) {
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData.user?.id;
+    if (!uid) return { records: [], error: 'Not authenticated.' };
+    query = query.eq('cleaned_by', uid);
+  }
+  if (limit !== undefined) query = query.limit(limit);
+
+  const logsRes = await query;
+  type LogRow = { id: string; machine_id: string; cleaned_by: string; cleaned_at: string };
+  const rows = (logsRes.data as LogRow[] | null) ?? [];
+
+  if (logsRes.error) {
+    if (import.meta.env.DEV) console.error('[oboost] getCleaningHistory error:', logsRes.error.message);
+    return { records: [], error: 'Could not load cleaning history. Please try again.' };
+  }
+  if (rows.length === 0) {
+    return { records: [], error: null };
+  }
+
+  const machineIds = Array.from(new Set(rows.map(r => r.machine_id)));
+  const machinesRes = await supabase.from('machines').select('id, name').in('id', machineIds);
+  type MachineNameRow = { id: string; name: string };
+  const machineNameById = new Map(((machinesRes.data as MachineNameRow[] | null) ?? []).map(m => [m.id, m.name]));
+
+  const userIds = Array.from(new Set(rows.map(r => r.cleaned_by)));
+  let nameById = new Map<string, string>();
+  if (userIds.length > 0) {
+    const profilesRes = await supabase.from('profiles').select('id, full_name').in('id', userIds);
+    type ProfileRow = { id: string; full_name: string };
+    nameById = new Map(((profilesRes.data as ProfileRow[] | null) ?? []).map(p => [p.id, p.full_name || '—']));
+  }
+
+  return {
+    records: rows.map(r => ({
+      id: r.id,
+      machineName: machineNameById.get(r.machine_id) ?? '—',
+      cleanedByName: nameById.get(r.cleaned_by) ?? '—',
+      cleanedAt: r.cleaned_at,
+    })),
+    error: null,
+  };
+}
+
+export interface MalfunctionHistoryRecord {
+  id: string;
+  machineName: string;
+  reportedByName: string;
+  reportedAt: string;
+  description: string;
+  faultType: string;
+  severity: ReportSeverity;
+  status: ReportStatus;
+  resolvedByName: string | null;
+  resolvedAt: string | null;
+  resolutionNotes: string | null;
+}
+
+export async function getMalfunctionHistory(mineOnly: boolean, limit?: number): Promise<{ records: MalfunctionHistoryRecord[]; error: string | null }> {
+  let query = supabase
+    .from('maintenance_reports')
+    .select('id, machine_id, reported_by, reported_at, description, fault_type, severity, status, resolved_by, resolved_at, resolution_notes')
+    .order('reported_at', { ascending: false });
+
+  if (mineOnly) {
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData.user?.id;
+    if (!uid) return { records: [], error: 'Not authenticated.' };
+    query = query.eq('reported_by', uid);
+  }
+  if (limit !== undefined) query = query.limit(limit);
+
+  const reportsRes = await query;
+  type ReportRow = {
+    id: string;
+    machine_id: string;
+    reported_by: string;
+    reported_at: string;
+    description: string;
+    fault_type: string;
+    severity: ReportSeverity;
+    status: ReportStatus;
+    resolved_by: string | null;
+    resolved_at: string | null;
+    resolution_notes: string | null;
+  };
+  const rows = (reportsRes.data as ReportRow[] | null) ?? [];
+
+  if (reportsRes.error) {
+    if (import.meta.env.DEV) console.error('[oboost] getMalfunctionHistory error:', reportsRes.error.message);
+    return { records: [], error: 'Could not load malfunction history. Please try again.' };
+  }
+  if (rows.length === 0) {
+    return { records: [], error: null };
+  }
+
+  const machineIds = Array.from(new Set(rows.map(r => r.machine_id)));
+  const machinesRes = await supabase.from('machines').select('id, name').in('id', machineIds);
+  type MachineNameRow = { id: string; name: string };
+  const machineNameById = new Map(((machinesRes.data as MachineNameRow[] | null) ?? []).map(m => [m.id, m.name]));
+
+  const userIds = Array.from(new Set([
+    ...rows.map(r => r.reported_by),
+    ...rows.map(r => r.resolved_by).filter((id): id is string => !!id),
+  ]));
+  let nameById = new Map<string, string>();
+  if (userIds.length > 0) {
+    const profilesRes = await supabase.from('profiles').select('id, full_name').in('id', userIds);
+    type ProfileRow = { id: string; full_name: string };
+    nameById = new Map(((profilesRes.data as ProfileRow[] | null) ?? []).map(p => [p.id, p.full_name || '—']));
+  }
+
+  return {
+    records: rows.map(r => ({
+      id: r.id,
+      machineName: machineNameById.get(r.machine_id) ?? '—',
+      reportedByName: nameById.get(r.reported_by) ?? '—',
+      reportedAt: r.reported_at,
+      description: r.description,
+      faultType: r.fault_type,
+      severity: r.severity,
+      status: r.status,
+      resolvedByName: r.resolved_by ? nameById.get(r.resolved_by) ?? '—' : null,
+      resolvedAt: r.resolved_at,
+      resolutionNotes: r.resolution_notes,
+    })),
+    error: null,
+  };
 }

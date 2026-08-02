@@ -38,7 +38,7 @@
 
 .stat-cards {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 14px;
   margin-bottom: 28px;
 }
@@ -89,6 +89,35 @@
 .stat-card__subtext {
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+/* ─── Recent activity ─── */
+
+.activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 24px 20px;
+}
+
+.activity-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--text);
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.activity-item__time {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 /* ─── Machine section wrapper ─── */
@@ -159,7 +188,7 @@
 }
 
 .machine-table tbody tr:hover {
-  background: #FAFAF9;
+  background: var(--bg);
 }
 
 .machine-name {
@@ -192,9 +221,9 @@
   white-space: nowrap;
 }
 
-.machine-due--clean          { color: var(--green); }
-.machine-due--needs_cleaning { color: var(--amber); }
-.machine-due--overdue        { color: var(--red); }
+.machine-due--clean    { color: var(--green); }
+.machine-due--due_soon { color: var(--amber); }
+.machine-due--overdue  { color: var(--red); }
 
 /* ─── Status badge ─── */
 
@@ -227,12 +256,21 @@
   background: var(--green);
 }
 
-.status-badge--needs_cleaning {
+.status-badge--maintenance {
   background: var(--amber-tint);
   color: var(--amber);
 }
 
-.status-badge--needs_cleaning .status-badge__dot {
+.status-badge--maintenance .status-badge__dot {
+  background: var(--amber);
+}
+
+.status-badge--due_soon {
+  background: var(--amber-tint);
+  color: var(--amber);
+}
+
+.status-badge--due_soon .status-badge__dot {
   background: var(--amber);
 }
 
@@ -243,6 +281,141 @@
 
 .status-badge--overdue .status-badge__dot {
   background: var(--red);
+}
+
+/* Restrained pulse on the overdue indicator — off entirely for users
+   who prefer reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .status-badge--overdue .status-badge__dot {
+    animation: status-pulse-overdue 2s ease-in-out infinite;
+  }
+}
+
+@keyframes status-pulse-overdue {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+/* ─── Machine details page ─── */
+
+.machine-detail-grid {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 640px) {
+  .machine-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.machine-detail-image {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.machine-detail-image img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.machine-detail-image__placeholder {
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.machine-detail-image__upload {
+  text-align: center;
+  cursor: pointer;
+}
+
+.machine-detail-info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.machine-detail-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.machine-detail-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.machine-detail-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.machine-detail-actions {
+  margin-bottom: 20px;
+}
+
+/* ─── Report tabs ─── */
+
+.report-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.report-tab {
+  padding: 8px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.report-tab:hover {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+.report-tab.active {
+  background: var(--orange-tint);
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+.report-load-more {
+  margin-top: 12px;
 }
 
 /* ─── Mark as Cleaned button ─── */
@@ -259,14 +432,19 @@
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 
-.btn-mark-clean:hover {
+.btn-mark-clean:hover:not(:disabled) {
   border-color: var(--orange);
   color: var(--orange);
   background: var(--orange-tint);
 }
 
-.btn-mark-clean:active {
+.btn-mark-clean:active:not(:disabled) {
   transform: scale(0.97);
+}
+
+.btn-mark-clean:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ─── Mark as Working button ─── */
@@ -298,7 +476,7 @@
   cursor: not-allowed;
 }
 
-/* ─── Placeholder panel (temporary page content) ─── */
+/* ─── Empty-state panel ─── */
 
 .placeholder-panel {
   background: var(--surface);
@@ -416,6 +594,40 @@
 }
 
 /* ─── Employees page ─── */
+
+.employee-avatar {
+  display: block;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.employee-avatar--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--orange-tint);
+  color: var(--orange);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.employee-avatar-upload {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.employee-avatar-upload:hover {
+  color: var(--orange);
+}
 
 .employee-form {
   background: var(--surface);

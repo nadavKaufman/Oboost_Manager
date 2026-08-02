@@ -1,277 +1,101 @@
 # OBoost Manager — Project Status
 
-## 1. Already Done (before today)
+This document tracks what is actually implemented right now. See `README.md` for setup, architecture, and stack details.
 
-- React 19 + TypeScript + Vite project scaffold
+## 1. Stack
+
+- React 19 + TypeScript + Vite
 - React Router v7
-- Pure CSS only (no UI libraries)
-- Internal OBoost Operations Portal concept locked in
-- Navbar, Sidebar, TopBar, Header, DashboardLayout components
-- Dashboard page with StatCard, MachineTable, EmployeeTable
-- MachineCard + MachineGrid components
-- Landing page
-- Mock machines data (`src/data/mockMachines.ts`)
-- Mock users/employees data (`src/data/mockUsers.ts`)
-- TypeScript types for machines, roles, status (`src/types/machine.ts`)
-- `getMachineStatus()` utility function
-- Build passes
+- Pure CSS — no UI component library
+- Supabase (PostgreSQL, Auth, Row Level Security, pg_cron)
 
----
+## 2. Folder structure
 
-## 2. Added Today
+```
+src/
+  components/
+    auth/ProtectedRoute.tsx
+    dashboard/MachineTable.tsx, StatCard.tsx
+    layout/Sidebar.tsx, TopBar.tsx, DashboardLayout.tsx, Header.tsx
+  context/AuthContext.tsx
+  data/mockMachines.ts
+  lib/supabase.ts
+  pages/Landing.tsx, Login.tsx, Dashboard.tsx, Machines.tsx, Employees.tsx, Reports.tsx
+  types/machine.ts
+  styles/
 
-### Package installed
-- `@supabase/supabase-js` ^2 — the only package added
-
-### Files created
-| File | Purpose |
-|------|---------|
-| `backend/migrations/01_schema.sql` | All database tables with columns, types, constraints |
-| `backend/migrations/02_triggers.sql` | auto-create profile on signup, updated_at, status history logging, fault escalation |
-| `backend/migrations/03_rls.sql` | Row Level Security policies for all 6 tables |
-| `backend/migrations/04_cron.sql` | Daily pg_cron job to update cleaning_status |
-| `.env.example` | Template for required environment variables |
-| `src/lib/supabase.ts` | Typed Supabase client singleton + full Database type definition |
-| `PROJECT_STATUS.md` | This file |
-
-### Database tables designed
-- `profiles` — extends auth.users (id, full_name, role, avatar_url)
-- `machines` — name, location, model, fault_status, last_cleaned_at, next_cleaning_due_at, cleaning_status, is_active
-- `machine_assignments` — many-to-many with history (is_active flag, unassigned_at)
-- `cleaning_logs` — append-only log of every cleaning event
-- `maintenance_reports` — fault reports with severity and resolution tracking
-- `machine_status_history` — append-only audit log of all status changes
-
-### Key decisions locked
-- Cleaning interval: fixed at **21 days** for all machines (no per-machine config)
-- `cleaning_status` stored in `machines` table: `clean` | `needs_cleaning` | `overdue`
-- Cron transitions:
-  - `clean → needs_cleaning` when `next_cleaning_due_at <= now()`
-  - `needs_cleaning → overdue` when `next_cleaning_due_at <= now() - 7 days`
-- Role hierarchy: `employee < manager` (simplified from four roles — see Phase 5)
-- Authorization is database-based (RLS), not hardcoded in the frontend
-- `service_role` key is never exposed in the frontend or any `VITE_` variable
-
----
-
-## 3. Foundation Complete — Current State
-
-### Live (Supabase-backed)
-- Auth session and profile (name, role) — from `auth.users` + `profiles` table
-- Dashboard welcome heading — shows authenticated user's `full_name`
-- Dashboard machine table — fetches from `public.machines` on mount; fallback to `mockMachines` if empty or error
-
-### Still Mock-Only
-- `src/data/mockUsers.ts` — employee table still uses 4 hardcoded employees
-- `EmployeeTable` in dashboard — not connected to DB
-- `MachineCard` / `MachineGrid` components — not in the main dashboard flow
-- Assigned employee column — shows `'—'` for all live machines (assignments not fetched yet)
-- "Mark as Cleaned" button — updates local state only, no DB write
-- "Report Issue" button — local toggle only, no DB write
-
----
-
-## 4. Manual Supabase Setup — Completed
-
-| Item | Status |
-|------|--------|
-| Supabase project created (`oboost-manager`, eu-central-1) | Done |
-| Migration `01_schema.sql` | Ran successfully |
-| Migration `02_triggers.sql` | Ran successfully |
-| Migration `03_rls.sql` | Ran successfully |
-| Migration `04_cron.sql` | Ran successfully |
-| Real Supabase login | Working |
-| Profile: `Nadav Kaufman`, role = `manager` | Set |
-| Seed machines inserted into `public.machines` | Done |
-| Dashboard welcome heading uses auth profile name | Done (falls back to mock if profile not loaded) |
-
-Dashboard machine table now fetches from `public.machines` (live). Employee table still uses mock data.
-
----
-
-## 5. Added in Phase 2 — Auth MVP
-
-### Files created
-| File | Purpose |
-|------|---------|
-| `src/context/AuthContext.tsx` | Supabase session + profile (full_name, role) in React context; exposes `session`, `profile`, `loading`, `signOut` |
-| `src/pages/Login.tsx` | Email + password sign-in form; redirects to `/dashboard` on success |
-| `src/components/auth/ProtectedRoute.tsx` | Redirects to `/login` if no active session; renders nothing while auth is loading |
-
-### Files modified
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Wrapped routes in `AuthProvider`; added `/login` route; protected `/dashboard` with `ProtectedRoute` |
-| `src/components/layout/DashboardLayout.tsx` | Reads `AuthContext` for real name/role/signOut; falls back to `currentUser` prop if profile not loaded |
-| `src/components/layout/TopBar.tsx` | Added optional `onLogout` prop; renders "Sign out" button when provided |
-| `src/styles/landing.css` | Added login page CSS (`.login-page`, `.login-card`, `.login-form`, etc.) |
-| `src/styles/layout.css` | Added `.topbar__logout` button styles |
-
-### Auth behaviour
-- `/` — landing page, always public
-- `/login` — login form, always public
-- `/dashboard` — requires active Supabase session; redirects to `/login` if not authenticated
-- On sign-in: session stored by Supabase SDK → `AuthContext` picks it up → profile fetched from `profiles` table → TopBar shows real name + role
-- On sign-out: session cleared → `ProtectedRoute` redirects to `/login`
-
----
-
-## 6. Phase 3 — Live Machine Data (Completed)
-
-### Files modified
-| File | Change |
-|------|--------|
-| `src/lib/supabase.ts` | Added `getMachines()` — queries `public.machines` (active only), maps DB columns to frontend `Machine` type |
-| `src/pages/Dashboard.tsx` | `useEffect` on mount calls `getMachines()`; replaces `mockMachines` with live rows if any returned; fallback stays on error or empty result |
-
-### Mapping decisions
-- `last_cleaned_at` (timestamptz) → `lastCleaned` (date string, `split('T')[0]`); null → `'2000-01-01'` (renders as overdue)
-- `cleaningIntervalDays` → hardcoded `21` (project-wide constant, not stored in DB)
-- `assignedEmployeeId` → `''` (machine_assignments join not wired yet; shows `'—'` in table)
-- `fault_status` / `maintenance_notes` → renamed to camelCase
-
----
-
-## 7. Not Implemented Yet
-
-| Feature | Status |
-|---------|--------|
-| Employee table from Supabase (`profiles`) | Not started |
-| Assigned employee column (machine_assignments join) | Not started |
-| "Mark as Cleaned" action (DB) | Not started |
-| "File Maintenance Report" action (DB) | Not started |
-| Machine assignment UI (manager) | Not started |
-| Users management page | Not started |
-| Machine detail page | Not started |
-| Live cleaning_logs display | Not started |
-| Live maintenance_reports display | Not started |
-
----
-
-## 8. Next Recommended Step
-
-**Phase 4 — Wire mutations and replace employee mock data**
-
-Option A (mutations first):
-1. Wire "Mark as Cleaned" → insert into `cleaning_logs`, update `machines.last_cleaned_at`
-2. Wire "Report Issue" → insert into `maintenance_reports`
-
-Option B (employee data first):
-1. Replace `MOCK_EMPLOYEES` with a `getEmployees()` query from `profiles`
-2. Wire assigned employee column via `machine_assignments` join
-
----
-
-## 9. Commands to Run Locally
-
-```bash
-# Development server (requires .env.local with Supabase credentials)
-npm run dev
-
-# Type check + production build
-npm run build
-
-# Preview production build
-npm run preview
+backend/
+  migrations/         01 through 10, hand-run in the Supabase SQL Editor in order
 ```
 
-To connect Supabase:
-```bash
-# Copy the template
-cp .env.example .env.local
-# Then edit .env.local and fill in your real values
-```
+Database migrations live in `backend/migrations/` (not `supabase/migrations/` — that path no longer exists).
 
----
+## 3. Migrations (`backend/migrations/`)
 
-## 10. Manual Supabase Steps (All Complete)
-
-Do these in the Supabase Dashboard before running any migrations:
-
-1. **Create Supabase project**
-   - Name: `oboost-manager`
-   - Region: `eu-central-1` (Frankfurt) — closest to Israel
-
-2. **Enable extensions**
-   - Dashboard → Database → Extensions
-   - Enable: `pg_cron`
-   - (`uuid-ossp` is NOT required — the schema uses `gen_random_uuid()` which is built-in)
-
-3. **Run migrations in order**
-   - Dashboard → SQL Editor → New query
-   - Run `01_schema.sql` → verify tables appear
-   - Run `02_triggers.sql` → verify triggers created
-   - Run `03_rls.sql` → verify RLS enabled on all tables
-   - Run `04_cron.sql` → verify with `select * from cron.job;`
-
-4. **Copy API credentials**
-   - Dashboard → Settings → API
-   - Copy Project URL → `VITE_SUPABASE_URL` in `.env.local`
-   - Copy `anon public` key → `VITE_SUPABASE_ANON_KEY` in `.env.local`
-   - Keep `service_role` key safe and private — never use it in frontend code
-
-5. **Test auth**
-   - Dashboard → Authentication → Users
-   - Create a test user manually to verify the `handle_new_user` trigger creates a `profiles` row
-
-6. **Set first manager**
-   - After creating your first user, run in SQL Editor:
-     ```sql
-     update public.profiles set role = 'manager' where id = '<your-user-uuid>';
-     ```
-   - All new signups default to `employee` role
-
----
-
-## 11. Phase 4 — Sidebar Routing (Completed)
-
-Sidebar links now navigate to real, protected pages instead of all pointing at `/dashboard`. Pages are structural placeholders only — no data fetching or Supabase logic yet.
-
-### Files created
 | File | Purpose |
-|------|---------|
-| `src/pages/Machines.tsx` | Placeholder page at `/machines`, wrapped in `DashboardLayout` |
-| `src/pages/Employees.tsx` | Placeholder page at `/employees`, wrapped in `DashboardLayout` |
-| `src/pages/Reports.tsx` | Placeholder page at `/reports`, wrapped in `DashboardLayout` |
+|---|---|
+| `01_schema.sql` | Core tables: profiles, machines, machine_assignments, cleaning_logs, maintenance_reports, machine_status_history |
+| `02_triggers.sql` | Auto-create profile on signup; `updated_at` triggers; status-history logging; fault escalation on high-severity reports |
+| `03_rls.sql` | Row Level Security policies for all tables in `01_schema.sql` |
+| `04_cron.sql` | Daily pg_cron job that recomputes `cleaning_status` |
+| `05_employees.sql` | Adds the `employees` table (1:1 with `profiles`) and its RLS policies |
+| `06_admin_user.sql` | **Template.** Promotes a manager account by email — edit the placeholder email/name before running |
+| `07_employees_feature.sql` | Widens the `profiles` update policy so managers can change roles (needed for the Add Employee flow) |
+| `08_fix_admin_login.sql` | **Template.** Repairs a manually-created auth user missing its `auth.identities` row — edit the placeholder email before running |
+| `09_role_simplification.sql` | Collapses the original four-role model (`employee`, `worker`, `admin`, `manager`) down to two (`employee`, `manager`); redefines `is_admin_or_manager()` to mean "is manager" |
+| `10_mark_machine_cleaned.sql` | Atomic `security definer` RPC that persists "Mark Cleaned": updates `machines` and inserts into `cleaning_logs` in one call, with its own authorization check |
 
-### Files modified
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Added protected `/machines`, `/employees`, `/reports` routes (same `ProtectedRoute` pattern as `/dashboard`) |
-| `src/components/layout/Sidebar.tsx` | Fixed `NAV_ITEMS` paths (Machines/Employees/Reports no longer all point to `/dashboard`); generalized active-link check to `location.pathname === item.path` for all items, not just Overview |
-| `src/styles/dashboard.css` | Added `.placeholder-panel` style reused by all three new pages |
+All ten files are treated as applied history against the live database and are not rewritten in place; further schema changes should be added as new numbered files.
 
-### Still not implemented
-- Real content for Machines/Employees/Reports pages (data fetching, tables, forms)
+## 4. Role model
 
----
+Two roles only: `employee`, `manager`. Enforced by a CHECK constraint on `profiles.role` and by RLS via `is_admin_or_manager()` (legacy name; the function itself now checks `role = 'manager'` exclusively).
 
-## 12. Phase 5 — Role Simplification (Completed)
+## 5. Page-by-page status
 
-Reduced the role system from four roles (`employee`, `worker`, `admin`, `manager`) to two (`employee`, `manager`). Existing `admin` profiles are migrated to `manager` (no functionality lost); existing `worker` profiles are migrated to `employee`.
+| Route | Status |
+|---|---|
+| `/` | Landing page — public, static marketing content |
+| `/login` | Email/password sign-in, public |
+| `/dashboard` | **Live.** Summary overview: stat cards (Total, Clean, Needs Cleaning, Overdue, Team) computed from live Supabase data, plus a fault alert banner. No full machine table here — see `/machines`. |
+| `/machines` | **Live.** Full machine table sourced from Supabase. Mark Cleaned and Mark as Working are both persisted. Report Issue is local-only (see §7). |
+| `/employees` | **Live.** Employee list sourced from Supabase (`employees` joined with `profiles.role`). Managers can add new employees, which creates a real Supabase Auth account. |
+| `/reports` | **Not implemented.** Honest empty-state page — no maintenance/cleaning-history data is queried or shown. |
 
-### Files created
-| File | Purpose |
-|------|---------|
-| `supabase/migrations/05_role_simplification.sql` | Live-DB migration: converts existing `admin`→`manager` and `worker`→`employee` rows, tightens the `profiles.role` CHECK constraint to `('employee', 'manager')`, redefines `is_admin_or_manager()` to check `role = 'manager'` only |
+All four internal routes are behind `ProtectedRoute` and require an authenticated session.
 
-`01_schema.sql` through `04_cron.sql` are treated as immutable, already-applied migration history and were **not** edited — `05_role_simplification.sql` is the only file altering the live database, and must be run manually in the Supabase SQL Editor (see section 10 workflow) after `04_cron.sql`.
+## 6. Mark Cleaned persistence
 
-### Files modified
-| File | Change |
-|------|--------|
-| `src/types/machine.ts` | `UserRole` narrowed to `'manager' \| 'employee'` |
-| `src/lib/supabase.ts` | `UserRole` narrowed to `'employee' \| 'manager'` (mirrors new DB constraint) |
-| `src/components/layout/Sidebar.tsx` | `ROLE_RANK` reduced to `{ employee: 0, manager: 1 }`; Employees nav item now requires `minRole: 'manager'` (was `'admin'`) |
-| `src/components/layout/TopBar.tsx` | `ROLE_LABEL` reduced to Manager/Employee only |
-| `src/components/dashboard/EmployeeTable.tsx` | `ROLE_LABEL` reduced to Manager/Employee only |
-| `src/components/dashboard/MachineTable.tsx` | "Mark as Working" visibility now checks `currentUserRole === 'manager'` only (was admin-or-manager); "Assigned Worker" column renamed to "Assigned Employee" |
-| `src/data/mockUsers.ts` | Sara Cohen `admin`→`manager`; Yossi Ben-David and Dan Mizrahi `worker`→`employee` |
-| `src/pages/Landing.tsx` | Marketing copy updated to describe two roles instead of four |
-| `PROJECT_STATUS.md` | This section, plus role-hierarchy and "assigned worker" references updated |
+Implemented via the `mark_machine_cleaned` Postgres RPC (migration 10). A single atomic call updates `machines.last_cleaned_at` / `next_cleaning_due_at` / `cleaning_status` and inserts a `cleaning_logs` row. The RPC performs its own authorization check (manager, or an employee with an active assignment to that machine) rather than relying solely on table-level RLS, since the `machines` UPDATE policy is manager-only but employees should still be able to clean their own assigned machines.
 
-### Security note
-RLS elevated access (`is_admin_or_manager()`) now means **manager only** — a narrowing, not a weakening, of access. The function name is kept unchanged deliberately so no RLS policy needed to be dropped or recreated; only its body was redefined via `CREATE OR REPLACE FUNCTION`.
+## 7. Mark as Working
 
-### Deployment ordering
-Run `05_role_simplification.sql` before or together with deploying this frontend change. If old `worker`/`admin` values remain in the live DB while the frontend only recognizes `employee`/`manager`, role-based UI (nav filtering, role labels) would break for those accounts until the migration runs.
+Implemented via `markMachineWorking()` in `src/lib/supabase.ts` — a direct `UPDATE` on `machines.fault_status`. Manager-only in the UI (`MachineTable.tsx` gates the button on `currentUserRole === 'manager'`) and enforced independently by the `machines: update elevated only` RLS policy.
+
+## 8. Known incomplete features
+
+- **Report Issue** — UI-only toggle in `MachineTable.tsx`, not persisted to `maintenance_reports`.
+- **Machine assignments** — the `machine_assignments` table and its RLS policies exist, but nothing in the UI writes to it. The "Assigned Employee" column always shows `—`.
+- **Reports page** — no real functionality yet; honest empty state only.
+- **No automated tests.**
+
+## 9. Error handling policy
+
+Raw Supabase/Postgres error messages are never shown to users. Every data-access function in `src/lib/supabase.ts` returns a short, generic, user-safe message on failure; the underlying error is logged with `console.error` only when `import.meta.env.DEV` is true. Applied consistently across `Login.tsx`, `Employees.tsx` (via `createEmployee`), `Machines.tsx` (via `markMachineWorking`/`markMachineCleaned`), and `AuthContext.tsx`.
+
+## 10. Deployment status
+
+- **Primary target: Netlify**, under the project owner's own account. Build command `npm run build`, publish directory `dist`, SPA routing via `public/_redirects`.
+- A generic `vercel.json` remains in the repo as an alternative path but is not the documented primary deployment.
+- No production URL is live yet as of this writing.
+
+## 11. Manual Supabase setup (for a fresh project)
+
+1. Create a Supabase project.
+2. Enable the `pg_cron` extension (Database → Extensions).
+3. Run every file in `backend/migrations/` in order via the SQL Editor, 01 through 10 — editing the placeholder values in `06_admin_user.sql` and `08_fix_admin_login.sql` first if you need them.
+4. Copy the Project URL and `anon public` key into `.env.local` as `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`. Never use the `service_role` key in this frontend.
+5. Create your first user via signup or the Supabase Dashboard, then promote them to `manager`:
+   ```sql
+   update public.profiles set role = 'manager' where id = '<your-user-uuid>';
+   ```

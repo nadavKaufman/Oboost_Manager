@@ -2,7 +2,7 @@
   "name": "oboost-manager",
   "version": "0.0.0",
   "private": true,
-  "description": "This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.",
+  "description": "Internal operations portal for OBoost — machine cleaning schedules, fault tracking, and staff management, backed by Supabase.",
   "homepage": "https://github.com/nadavKaufman/Oboost_Employees#readme",
   "bugs": {
     "url": "https://github.com/nadavKaufman/Oboost_Employees/issues"
@@ -14,7 +14,6 @@
   "license": "ISC",
   "author": "",
   "type": "module",
-  "main": "eslint.config.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

@@ -6,6 +6,8 @@ interface Props {
   userRole: UserRole;
   onMenuClick: () => void;
   onLogout?: () => void;
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
 }
 
 const ROLE_LABEL: Record<UserRole, string> = {
@@ -13,7 +15,15 @@ const ROLE_LABEL: Record<UserRole, string> = {
   employee: 'Employee',
 };
 
-export default function TopBar({ title, userName, userRole, onMenuClick, onLogout }: Props) {
+export default function TopBar({
+  title,
+  userName: _userName,
+  userRole,
+  onMenuClick,
+  onLogout,
+  theme,
+  onToggleTheme,
+}: Props) {
   return (
     <div className="topbar">
       <div className="topbar__left">
@@ -30,11 +40,19 @@ export default function TopBar({ title, userName, userRole, onMenuClick, onLogou
       </div>
 
       <div className="topbar__right">
-        <span className="topbar__user-name">{userName}</span>
         <div className="topbar__role-badge">
           <span className="topbar__role-dot" />
           {ROLE_LABEL[userRole]}
         </div>
+        <button
+          type="button"
+          className="topbar__theme-toggle"
+          onClick={onToggleTheme}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {theme === 'dark' ? '☀' : '🌙'}
+        </button>
         {onLogout && (
           <button className="topbar__logout" onClick={onLogout}>
             Sign out

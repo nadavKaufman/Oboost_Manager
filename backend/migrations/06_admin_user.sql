@@ -1,9 +1,14 @@
 -- =============================================================
--- OBoost Manager — Promote manager user: Jonathan Segev
+-- OBoost Manager — Promote manager user (template)
 -- Run after 05_employees.sql in the Supabase SQL Editor.
 --
--- Prerequisite: the auth user for yonatansegev14@gmail.com must
--- already exist. Create it via Supabase Dashboard → Authentication →
+-- This migration is a TEMPLATE. Before running it, replace the
+-- placeholder email and name below with the real manager account
+-- you want to promote. Never commit real personal details or a
+-- password into this file — passwords are never handled here.
+--
+-- Prerequisite: the auth user for the target email must already
+-- exist. Create it via Supabase Dashboard → Authentication →
 -- Add user → Invite (or let them sign up normally) so the password
 -- is set through Supabase's own invite/reset email flow — never
 -- store a password in this file.
@@ -21,14 +26,17 @@
 do $$
 declare
   v_user_id uuid;
+  v_email   text := 'manager@example.com';   -- CHANGE_ME before running
+  v_first   text := 'Jane';                  -- CHANGE_ME before running
+  v_last    text := 'Doe';                   -- CHANGE_ME before running
 begin
   -- 1. Look up the existing auth user
   select id into v_user_id
   from auth.users
-  where email = 'yonatansegev14@gmail.com';
+  where email = v_email;
 
   if v_user_id is null then
-    raise exception 'Auth user for yonatansegev14@gmail.com does not exist yet — create it via Supabase Dashboard (Authentication → Add user → Invite) before running this migration.';
+    raise exception 'Auth user for % does not exist yet — create it via Supabase Dashboard (Authentication → Add user → Invite) before running this migration.', v_email;
   end if;
 
   -- 2. Ensure the email identity exists (needed for sign-in)
@@ -36,7 +44,7 @@ begin
   select
     gen_random_uuid(),
     v_user_id,
-    jsonb_build_object('sub', v_user_id::text, 'email', 'yonatansegev14@gmail.com'),
+    jsonb_build_object('sub', v_user_id::text, 'email', v_email),
     'email',
     v_user_id::text,
     now(), now(), now()
@@ -52,13 +60,13 @@ begin
 
   -- 4. Link the employees row
   insert into public.employees (employee_id, first_name, last_name, email)
-  values (v_user_id, 'Jonathan', 'Segev', 'yonatansegev14@gmail.com')
+  values (v_user_id, v_first, v_last, v_email)
   on conflict (employee_id) do nothing;
 end $$;
 
 -- To verify:
 -- select u.id, u.email, u.email_confirmed_at,
 --        (select count(*) from auth.identities i where i.user_id = u.id) as identities
--- from auth.users u where u.email = 'yonatansegev14@gmail.com';
--- select id, email, role from public.profiles where email = 'yonatansegev14@gmail.com';
--- select * from public.employees where email = 'yonatansegev14@gmail.com';
+-- from auth.users u where u.email = 'manager@example.com';
+-- select id, email, role from public.profiles where email = 'manager@example.com';
+-- select * from public.employees where email = 'manager@example.com';

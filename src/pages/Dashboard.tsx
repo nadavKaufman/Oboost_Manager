@@ -1,140 +1,193 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import StatCard from '../components/dashboard/StatCard';
-import MachineTable from '../components/dashboard/MachineTable';
-import EmployeeTable from '../components/dashboard/EmployeeTable';
-import { mockMachines } from '../data/mockMachines';
-import { type Machine, type Employee, getMachineStatus } from '../types/machine';
+import { type Machine, getMachineStatus } from '../types/machine';
 import { useAuth } from '../context/AuthContext';
-import { getMachines, markMachineWorking, getEmployees, type EmployeeRecord } from '../lib/supabase';
+import {
+  getMachines,
+  getEmployees,
+  getTasks,
+  getOrangeInventory,
+  getSpareParts,
+  getCleaningHistory,
+  getMalfunctionHistory,
+  type TaskRecord,
+  type SparePartRecord,
+} from '../lib/supabase';
 import '../styles/layout.css';
 import '../styles/dashboard.css';
 
-const MOCK_CURRENT_USER = {
-  id: 'e1',
-  name: 'Eitan Levy',
-  role: 'manager' as const,
+const FALLBACK_USER = {
+  name: '',
+  role: 'employee' as const,
 };
 
-function mapEmployees(rows: EmployeeRecord[]): Employee[] {
-  return rows.map(row => ({
-    id: row.employee_id,
-    name: `${row.first_name} ${row.last_name}`.trim(),
-    role: row.role,
-    assignedMachineIds: [],
-    activeTaskCount: 0,
-  }));
+const LOW_STOCK_THRESHOLD = 5;
+
+type PageStatus = 'loading' | 'error' | 'ready';
+
+interface ActivityItem {
+  key: string;
+  text: string;
+  timestamp: string;
 }
 
 export default function Dashboard() {
   const { profile, session, loading } = useAuth();
-  const displayName = profile?.full_name ?? MOCK_CURRENT_USER.name;
-  const displayRole = profile?.role ?? MOCK_CURRENT_USER.role;
-  const [machines, setMachines] = useState<Machine[]>(mockMachines);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [dataSource, setDataSource] = useState<'mock' | 'supabase'>('mock');
-  const [savingWorkingIds, setSavingWorkingIds] = useState<Set<string>>(new Set());
-  const [actionError, setActionError] = useState<string | null>(null);
+  const displayName = profile?.full_name ?? FALLBACK_USER.name;
+  const [status, setStatus] = useState<PageStatus>('loading');
+  const [machines, setMachines] = useState<Machine[]>([]);
+  const [employeeCount, setEmployeeCount] = useState(0);
+  const [tasks, setTasks] = useState<TaskRecord[]>([]);
+  const [orangeStock, setOrangeStock] = useState(0);
+  const [spareParts, setSpareParts] = useState<SparePartRecord[]>([]);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
 
   useEffect(() => {
     if (loading) return;
-    console.log('[oboost] dashboard: session exists:', !!session);
-    getMachines().then(rows => {
-      console.log('[oboost] machines returned:', rows.length);
-      if (rows.length > 0) {
-        setMachines(rows);
-        setDataSource('supabase');
+    setStatus('loading');
+
+    Promise.all([
+      getMachines(),
+      getEmployees(),
+      getTasks(),
+      getOrangeInventory(),
+      getSpareParts(),
+      getCleaningHistory(false, 5),
+      getMalfunctionHistory(false, 5),
+    ]).then(([machinesRes, employeesRes, tasksRes, orangeRes, sparePartsRes, cleaningRes, malfunctionRes]) => {
+      if (machinesRes.error || employeesRes.error || tasksRes.error) {
+        setStatus('error');
+        return;
       }
-    });
-    getEmployees().then(rows => {
-      setEmployees(mapEmployees(rows));
+
+      setMachines(machinesRes.machines);
+      setEmployeeCount(employeesRes.employees.length);
+      setTasks(tasksRes.tasks);
+      setOrangeStock(orangeRes.data?.currentStock ?? 0);
+      setSpareParts(sparePartsRes.parts);
+
+      const cleaningItems: ActivityItem[] = cleaningRes.records.map(r => ({
+        key: `clean-${r.id}`,
+        text: `${r.cleanedByName} cleaned ${r.machineName}`,
+        timestamp: r.cleanedAt,
+      }));
+      const malfunctionItems: ActivityItem[] = malfunctionRes.records.map(r => ({
+        key: `fault-${r.id}`,
+        text: `${r.reportedByName} reported an issue on ${r.machineName}`,
+        timestamp: r.reportedAt,
+      }));
+      const completedTaskItems: ActivityItem[] = tasksRes.tasks
+        .filter(t => t.completedAt)
+        .map(t => ({
+          key: `task-${t.id}`,
+          text: `${t.assignedToName} completed "${t.title}"`,
+          timestamp: t.completedAt as string,
+        }));
+
+      const merged = [...cleaningItems, ...malfunctionItems, ...completedTaskItems]
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 6);
+      setActivity(merged);
+
+      setStatus('ready');
     });
   }, [loading, session]);
 
-  function markAsCleaned(id: string) {
-    const today = new Date().toISOString().split('T')[0];
-    setMachines(prev =>
-      prev.map(m =>
-        m.id === id ? { ...m, lastCleaned: today, cleaningIntervalDays: 21 } : m
-      )
-    );
-  }
+  const today = new Date().toISOString().slice(0, 10);
 
-  async function handleMarkWorking(id: string) {
-    setActionError(null);
-    setSavingWorkingIds(prev => new Set(prev).add(id));
-
-    const { error } = await markMachineWorking(id);
-
-    if (error) {
-      setActionError(error);
-    } else {
-      const rows = await getMachines();
-      if (rows.length > 0) setMachines(rows);
-    }
-
-    setSavingWorkingIds(prev => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-  }
-
-  const total = machines.length;
-  const clean = machines.filter(m => getMachineStatus(m).status === 'clean').length;
-  const needsCleaning = machines.filter(m => getMachineStatus(m).status === 'needs_cleaning').length;
-  const overdue = machines.filter(m => getMachineStatus(m).status === 'overdue').length;
-  const faults = machines.filter(m => m.faultStatus === 'fault').length;
+  const activeMachines = machines.filter(m => m.isActive).length;
+  const malfunctioning = machines.filter(m => m.faultStatus === 'fault').length;
+  const cleaningOverdue = machines.filter(m => getMachineStatus(m).status === 'overdue').length;
+  const cleaningDueSoon = machines.filter(m => getMachineStatus(m).status === 'due_soon').length;
+  const pendingTasks = tasks.filter(t => t.status === 'pending').length;
+  const overdueTasks = tasks.filter(t => t.status === 'pending' && t.dueDate !== null && t.dueDate < today).length;
+  const lowStockParts = spareParts.filter(p => p.currentStock <= LOW_STOCK_THRESHOLD).length;
 
   return (
-    <DashboardLayout title="Operations Dashboard" currentUser={MOCK_CURRENT_USER}>
+    <DashboardLayout title="Operations Dashboard" currentUser={FALLBACK_USER}>
       <div className="dashboard-page">
         <div className="page-header">
           <h2 className="page-header__title">Welcome back, {displayName}</h2>
           <p className="page-header__subtitle">
-            Operations overview — all machines and staff assignments across OBoost locations.
+            Operations overview — all machines and staff across OBoost locations.
           </p>
-          {import.meta.env.DEV && (
-            <p style={{ fontSize: '11px', color: dataSource === 'supabase' ? '#22c55e' : '#f59e0b', marginTop: '4px' }}>
-              Source: {dataSource === 'supabase' ? 'Supabase ✓' : 'Mock fallback'}
-            </p>
-          )}
         </div>
 
-        <div className="stat-cards">
-          <StatCard label="Total Machines" value={total} subtext="Across all locations" />
-          <StatCard label="Clean" value={clean} accent="green" subtext="Within schedule" />
-          <StatCard label="Needs Cleaning" value={needsCleaning} accent="amber" subtext="Due within 7 days" />
-          <StatCard label="Overdue" value={overdue} accent="red" subtext="Requires attention" />
-        </div>
+        {status === 'loading' && (
+          <p className="employee-empty">Loading overview…</p>
+        )}
 
-        {faults > 0 && (
+        {status === 'error' && (
           <div className="alert-banner">
             <span className="alert-banner__dot" />
-            {faults} machine{faults > 1 ? 's' : ''} with active fault{faults > 1 ? 's' : ''} — see the Fault column below.
+            Could not load the overview. Please try again.
           </div>
         )}
 
-        {actionError && (
-          <div className="alert-banner">
-            <span className="alert-banner__dot" />
-            {actionError}
-          </div>
+        {status === 'ready' && machines.length === 0 && (
+          <p className="employee-empty">No machines have been added yet.</p>
         )}
 
-        <MachineTable
-          machines={machines}
-          employees={employees}
-          onMarkCleaned={markAsCleaned}
-          currentUserRole={profile?.role}
-          savingWorkingIds={savingWorkingIds}
-          onMarkWorking={handleMarkWorking}
-        />
+        {status === 'ready' && machines.length > 0 && (
+          <>
+            <div className="stat-cards">
+              <StatCard label="Active Machines" value={activeMachines} subtext={`${machines.length} total`} />
+              <StatCard
+                label="Malfunctioning"
+                value={malfunctioning}
+                accent={malfunctioning > 0 ? 'red' : 'default'}
+                subtext="Active reports"
+              />
+              <StatCard
+                label="Cleaning Overdue"
+                value={cleaningOverdue}
+                accent={cleaningOverdue > 0 ? 'red' : 'default'}
+                subtext="14+ days"
+              />
+              <StatCard
+                label="Cleaning Due Soon"
+                value={cleaningDueSoon}
+                accent={cleaningDueSoon > 0 ? 'amber' : 'default'}
+                subtext="7–13 days"
+              />
+              <StatCard label="Active Employees" value={employeeCount} subtext="On the team" />
+              <StatCard label="Pending Tasks" value={pendingTasks} subtext="Not yet completed" />
+              <StatCard
+                label="Overdue Tasks"
+                value={overdueTasks}
+                accent={overdueTasks > 0 ? 'red' : 'default'}
+                subtext="Past due date"
+              />
+              <StatCard label="Orange Stock" value={orangeStock} subtext="Cartons on hand" />
+              <StatCard
+                label="Low Stock Parts"
+                value={lowStockParts}
+                accent={lowStockParts > 0 ? 'amber' : 'default'}
+                subtext={`${LOW_STOCK_THRESHOLD} units or fewer`}
+              />
+            </div>
 
-        {displayRole === 'manager' && (
-          <div className="employee-section">
-            <EmployeeTable employees={employees} />
-          </div>
+            <div className="machine-section">
+              <div className="machine-section__header">
+                <span className="machine-section__title">Recent Activity</span>
+              </div>
+              {activity.length === 0 ? (
+                <p className="employee-empty">No recent activity yet.</p>
+              ) : (
+                <ul className="activity-list">
+                  {activity.map(item => (
+                    <li key={item.key} className="activity-item">
+                      <span>{item.text}</span>
+                      <span className="activity-item__time">
+                        {new Date(item.timestamp).toLocaleString()}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </>
         )}
       </div>
     </DashboardLayout>

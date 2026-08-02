@@ -15,15 +15,49 @@ interface Props {
   children: ReactNode;
 }
 
+const SIDEBAR_COLLAPSED_KEY = 'oboost-sidebar-collapsed';
+const THEME_KEY = 'oboost-theme';
+
+type Theme = 'light' | 'dark';
+
+function getInitialTheme(): Theme {
+  const stored = localStorage.getItem(THEME_KEY);
+  if (stored === 'light' || stored === 'dark') return stored;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
 export default function DashboardLayout({ title, currentUser, children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
+  );
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const { profile, signOut } = useAuth();
 
   const displayName = profile?.full_name ?? currentUser.name;
   const displayRole = (profile?.role ?? currentUser.role) as UserRole;
 
+  function toggleSidebarCollapsed() {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
+      return next;
+    });
+  }
+
+  function toggleTheme() {
+    setTheme(prev => {
+      const next: Theme = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem(THEME_KEY, next);
+      return next;
+    });
+  }
+
   return (
-    <div className="dash-layout">
+    <div
+      className={`dash-layout${sidebarCollapsed ? ' dash-layout--collapsed' : ''}`}
+      data-theme={theme}
+    >
       <div
         className={`dash-layout__overlay${sidebarOpen ? ' visible' : ''}`}
         onClick={() => setSidebarOpen(false)}
@@ -34,6 +68,8 @@ export default function DashboardLayout({ title, currentUser, children }: Props)
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         userRole={displayRole}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={toggleSidebarCollapsed}
       />
 
       <div className="dash-layout__main">
@@ -43,6 +79,8 @@ export default function DashboardLayout({ title, currentUser, children }: Props)
           userRole={displayRole}
           onMenuClick={() => setSidebarOpen(o => !o)}
           onLogout={signOut}
+          theme={theme}
+          onToggleTheme={toggleTheme}
         />
         {children}
       </div>

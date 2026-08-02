@@ -25,8 +25,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      console.log('[oboost] auth session exists:', !!data.session);
-      console.log('[oboost] auth user id exists:', !!data.session?.user?.id);
       setSession(data.session);
       if (data.session) {
         fetchProfile(data.session.user.id);
@@ -54,8 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select('id, full_name, role')
       .eq('id', userId)
       .single();
-    console.log('[oboost] profile loaded:', !!data);
-    if (error) console.error('[oboost] profile error:', error.message);
+    if (error && import.meta.env.DEV) console.error('[oboost] profile error:', error.message);
     setProfile(data ?? null);
     setLoading(false);
   }

@@ -1,10 +1,19 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import type { UserRole } from '../../types/machine';
 import type { ReactNode } from 'react';
 
-export default function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { session, loading } = useAuth();
+interface Props {
+  children: ReactNode;
+  allowedRoles?: UserRole[];
+}
+
+export default function ProtectedRoute({ children, allowedRoles }: Props) {
+  const { session, profile, loading } = useAuth();
   if (loading) return null;
   if (!session) return <Navigate to="/login" replace />;
+  if (allowedRoles && (!profile || !allowedRoles.includes(profile.role))) {
+    return <Navigate to={profile?.role === 'manager' ? '/dashboard' : '/my-machines'} replace />;
+  }
   return <>{children}</>;
 }

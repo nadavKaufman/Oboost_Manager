@@ -28,6 +28,29 @@
   --header-h:       64px;
 }
 
+/* Dark mode — scoped to the authenticated dashboard shell only, so the
+   public landing/login pages (which have their own fixed-color sections)
+   are unaffected. Toggled via the theme button in TopBar. */
+.dash-layout[data-theme="dark"] {
+  --bg:             #16181C;
+  --surface:        #1E2127;
+  --border:         #2E323A;
+  --text:           #EDEEF0;
+  --text-muted:     #A0A7B0;
+  --text-secondary: #7B828C;
+  --orange:         #FF8A4C;
+  --orange-hover:   #FFA06B;
+  --orange-tint:    rgba(255, 138, 76, 0.16);
+  --green:          #34D072;
+  --green-tint:     rgba(52, 208, 114, 0.16);
+  --amber:          #F5A623;
+  --amber-tint:     rgba(245, 166, 35, 0.16);
+  --red:            #F16565;
+  --red-tint:       rgba(241, 101, 101, 0.16);
+  --shadow-sm:      0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md:      0 4px 16px rgba(0, 0, 0, 0.45);
+}
+
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

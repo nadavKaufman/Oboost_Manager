@@ -1,7 +1,6 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, type ChangeEvent, type FormEvent } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
-import { getEmployees, createEmployee, type EmployeeRecord } from '../lib/supabase';
-import type { UserRole } from '../types/machine';
+import { getEmployees, createEmployee, uploadEmployeePhoto, type EmployeeRecord } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import '../styles/dashboard.css';
 
@@ -10,9 +9,9 @@ const ROLE_LABEL: Record<string, string> = {
   employee: 'Employee',
 };
 
-const MOCK_CURRENT_USER = {
-  name: 'Eitan Levy',
-  role: 'manager' as const,
+const FALLBACK_USER = {
+  name: '',
+  role: 'employee' as const,
 };
 
 const EMPTY_FORM = {
@@ -25,28 +24,52 @@ const EMPTY_FORM = {
   password: '',
 };
 
+type LoadStatus = 'loading' | 'error' | 'ready';
+
 export default function Employees() {
   const { profile } = useAuth();
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<LoadStatus>('loading');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const [form, setForm] = useState(EMPTY_FORM);
-  const [role, setRole] = useState<UserRole>('employee');
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   const canManage = profile?.role === 'manager';
 
-  useEffect(() => {
-    getEmployees().then(rows => {
-      setEmployees(rows);
-      setLoading(false);
+  const load = () => {
+    setStatus('loading');
+    getEmployees().then(({ employees: rows, error: fetchError }) => {
+      if (fetchError) {
+        setStatus('error');
+      } else {
+        setEmployees(rows);
+        setStatus('ready');
+      }
     });
-  }, []);
+  };
+
+  useEffect(load, []);
 
   function refresh() {
-    getEmployees().then(setEmployees);
+    getEmployees().then(({ employees: rows, error: fetchError }) => {
+      if (!fetchError) setEmployees(rows);
+    });
+  }
+
+  async function handlePhotoChange(employeeId: string, e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPhotoError(null);
+    setUploadingId(employeeId);
+    const { error } = await uploadEmployeePhoto(employeeId, file);
+    setUploadingId(null);
+    if (error) setPhotoError(error);
+    else refresh();
   }
 
   function setField(key: keyof typeof EMPTY_FORM, value: string) {
@@ -66,7 +89,6 @@ export default function Employees() {
       phoneNumber: form.phone,
       hireDate: form.hireDate || null,
       jobTitle: form.jobTitle,
-      role,
       password: form.password,
     });
 
@@ -78,18 +100,104 @@ export default function Employees() {
 
     setSuccess(`${form.firstName} ${form.lastName} added successfully.`);
     setForm(EMPTY_FORM);
-    setRole('employee');
     refresh();
   }
 
   return (
-    <DashboardLayout title="Employees" currentUser={MOCK_CURRENT_USER}>
+    <DashboardLayout title="Employees" currentUser={FALLBACK_USER}>
       <div className="dashboard-page">
         <div className="page-header">
           <h2 className="page-header__title">Employees</h2>
           <p className="page-header__subtitle">
             All staff records — sourced from the employees table.
           </p>
+        </div>
+
+        {photoError && (
+          <div className="alert-banner">
+            <span className="alert-banner__dot" />
+            {photoError}
+          </div>
+        )}
+
+        <div className="machine-section">
+          <div className="machine-section__header">
+            <span className="machine-section__title">All Employees</span>
+            <span className="machine-section__count">{employees.length} employees</span>
+          </div>
+
+          {status === 'loading' ? (
+            <p className="employee-empty">Loading employees…</p>
+          ) : status === 'error' ? (
+            <div className="alert-banner">
+              <span className="alert-banner__dot" />
+              Could not load employees. Please try again.
+            </div>
+          ) : employees.length === 0 ? (
+            <p className="employee-empty">No employees yet. Add your first employee below.</p>
+          ) : (
+            <table className="machine-table">
+              <thead>
+                <tr>
+                  <th>Photo</th>
+                  <th>Employee</th>
+                  <th>Role</th>
+                  <th>Job Title</th>
+                  <th>Phone</th>
+                  <th>Hire Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {employees.map(emp => {
+                  const fullName = `${emp.first_name} ${emp.last_name}`.trim();
+                  const initials = (emp.first_name[0] ?? '') + (emp.last_name[0] ?? '');
+                  return (
+                  <tr key={emp.employee_id}>
+                    <td data-label="Photo">
+                      {emp.photoUrl ? (
+                        <img src={emp.photoUrl} alt={fullName} className="employee-avatar" />
+                      ) : (
+                        <div className="employee-avatar employee-avatar--fallback">{initials.toUpperCase() || '—'}</div>
+                      )}
+                      {canManage && (
+                        <label className="employee-avatar-upload">
+                          {uploadingId === emp.employee_id ? 'Uploading…' : 'Edit photo'}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            hidden
+                            disabled={uploadingId === emp.employee_id}
+                            onChange={e => handlePhotoChange(emp.employee_id, e)}
+                          />
+                        </label>
+                      )}
+                    </td>
+                    <td>
+                      <div className="machine-name">
+                        {fullName}
+                      </div>
+                      <div className="machine-location">{emp.email}</div>
+                    </td>
+                    <td data-label="Role">
+                      <span className={`role-badge role-badge--${emp.role}`}>
+                        {ROLE_LABEL[emp.role]}
+                      </span>
+                    </td>
+                    <td data-label="Job Title">
+                      <span className="machine-model">{emp.job_title || '—'}</span>
+                    </td>
+                    <td data-label="Phone">
+                      <span className="machine-model">{emp.phone_number || '—'}</span>
+                    </td>
+                    <td data-label="Hire Date">
+                      <span className="machine-date">{emp.hire_date ?? '—'}</span>
+                    </td>
+                  </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {canManage && (
@@ -160,18 +268,6 @@ export default function Employees() {
                 />
               </div>
               <div className="employee-form__field">
-                <label className="employee-form__label" htmlFor="emp-role">Role</label>
-                <select
-                  id="emp-role"
-                  className="employee-form__select"
-                  value={role}
-                  onChange={e => setRole(e.target.value as UserRole)}
-                >
-                  <option value="employee">Employee</option>
-                  <option value="manager">Manager</option>
-                </select>
-              </div>
-              <div className="employee-form__field">
                 <label className="employee-form__label" htmlFor="emp-pass">Temporary password</label>
                 <input
                   id="emp-pass"
@@ -197,57 +293,6 @@ export default function Employees() {
             </form>
           </div>
         )}
-
-        <div className="machine-section">
-          <div className="machine-section__header">
-            <span className="machine-section__title">All Employees</span>
-            <span className="machine-section__count">{employees.length} employees</span>
-          </div>
-
-          {loading ? (
-            <p className="employee-empty">Loading employees…</p>
-          ) : employees.length === 0 ? (
-            <p className="employee-empty">No employees yet. Add your first employee above.</p>
-          ) : (
-            <table className="machine-table">
-              <thead>
-                <tr>
-                  <th>Employee</th>
-                  <th>Role</th>
-                  <th>Job Title</th>
-                  <th>Phone</th>
-                  <th>Hire Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {employees.map(emp => (
-                  <tr key={emp.employee_id}>
-                    <td>
-                      <div className="machine-name">
-                        {`${emp.first_name} ${emp.last_name}`.trim()}
-                      </div>
-                      <div className="machine-location">{emp.email}</div>
-                    </td>
-                    <td data-label="Role">
-                      <span className={`role-badge role-badge--${emp.role}`}>
-                        {ROLE_LABEL[emp.role]}
-                      </span>
-                    </td>
-                    <td data-label="Job Title">
-                      <span className="machine-model">{emp.job_title || '—'}</span>
-                    </td>
-                    <td data-label="Phone">
-                      <span className="machine-model">{emp.phone_number || '—'}</span>
-                    </td>
-                    <td data-label="Hire Date">
-                      <span className="machine-date">{emp.hire_date ?? '—'}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
       </div>
     </DashboardLayout>
   );

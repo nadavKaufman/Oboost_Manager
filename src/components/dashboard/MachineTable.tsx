@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { type Machine, getMachineStatus, type Employee, type UserRole } from '../../types/machine';
 
 interface Props {
@@ -8,24 +8,25 @@ interface Props {
   currentUserRole?: UserRole;
   savingWorkingIds: Set<string>;
   onMarkWorking: (id: string) => void;
+  savingCleanIds: Set<string>;
 }
 
 const STATUS_LABEL: Record<string, string> = {
   clean: 'Clean',
-  needs_cleaning: 'Needs Cleaning',
-  overdue: 'Overdue',
+  due_soon: 'Cleaning Due Soon',
+  overdue: 'Cleaning Overdue',
 };
 
 const FAULT_LABEL: Record<string, string> = {
   ok: 'OK',
-  fault: 'Fault',
+  fault: 'Malfunction',
   maintenance: 'Maintenance',
 };
 
 const FAULT_STATUS_CLASS: Record<string, string> = {
   ok: 'status-badge--clean',
   fault: 'status-badge--overdue',
-  maintenance: 'status-badge--needs_cleaning',
+  maintenance: 'status-badge--maintenance',
 };
 
 export default function MachineTable({
@@ -35,21 +36,14 @@ export default function MachineTable({
   currentUserRole,
   savingWorkingIds,
   onMarkWorking,
+  savingCleanIds,
 }: Props) {
-  const [reported, setReported] = useState<Set<string>>(new Set());
   const canMarkWorking = currentUserRole === 'manager';
 
-  function toggleReport(id: string) {
-    setReported(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function getEmployeeName(id: string): string {
-    return employees.find(e => e.id === id)?.name ?? '—';
+  function getAssignedNames(ids: string[]): string {
+    if (ids.length === 0) return '—';
+    const names = ids.map(id => employees.find(e => e.id === id)?.name ?? '—');
+    return names.join(', ');
   }
 
   return (
@@ -67,14 +61,13 @@ export default function MachineTable({
             <th>Last Cleaned</th>
             <th>Next Due</th>
             <th>Cleaning</th>
-            <th>Fault</th>
+            <th>Malfunction</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {machines.map(machine => {
             const { status, daysSinceCleaned, daysUntilDue } = getMachineStatus(machine);
-            const isReported = reported.has(machine.id);
 
             const dueText =
               daysUntilDue < 0
@@ -86,14 +79,18 @@ export default function MachineTable({
             return (
               <tr key={machine.id}>
                 <td>
-                  <div className="machine-name">{machine.name}</div>
+                  <div className="machine-name">
+                    <Link to={`/machines/${machine.id}`}>{machine.name}</Link>
+                  </div>
                   <div className="machine-location">{machine.location}</div>
                 </td>
                 <td data-label="Assigned Employee">
-                  <span className="machine-model">{getEmployeeName(machine.assignedEmployeeId)}</span>
+                  <span className="machine-model">{getAssignedNames(machine.assignedEmployeeIds)}</span>
                 </td>
                 <td data-label="Last Cleaned">
-                  <span className="machine-date">{daysSinceCleaned}d ago</span>
+                  <span className="machine-date">
+                    {daysSinceCleaned === null ? 'Never cleaned' : `${daysSinceCleaned}d ago`}
+                  </span>
                 </td>
                 <td data-label="Next Due">
                   <span className={`machine-due machine-due--${status}`}>{dueText}</span>
@@ -104,7 +101,7 @@ export default function MachineTable({
                     {STATUS_LABEL[status]}
                   </span>
                 </td>
-                <td data-label="Fault">
+                <td data-label="Malfunction">
                   <span className={`status-badge ${FAULT_STATUS_CLASS[machine.faultStatus]}`}>
                     <span className="status-badge__dot" />
                     {FAULT_LABEL[machine.faultStatus]}
@@ -114,16 +111,14 @@ export default function MachineTable({
                   <div className="table-actions">
                     <button
                       className="btn-mark-clean"
+                      disabled={savingCleanIds.has(machine.id)}
                       onClick={() => onMarkCleaned(machine.id)}
                     >
-                      Mark Cleaned
+                      {savingCleanIds.has(machine.id) ? 'Saving…' : 'Mark Cleaned'}
                     </button>
-                    <button
-                      className={`btn-report-issue${isReported ? ' reported' : ''}`}
-                      onClick={() => toggleReport(machine.id)}
-                    >
-                      {isReported ? 'Reported ✓' : 'Report Issue'}
-                    </button>
+                    <Link className="btn-report-issue" to={`/machines/${machine.id}`}>
+                      Report Malfunction
+                    </Link>
                     {canMarkWorking && machine.faultStatus === 'fault' && (
                       <button
                         className="btn-mark-working"

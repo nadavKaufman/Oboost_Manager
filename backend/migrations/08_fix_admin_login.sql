@@ -1,7 +1,10 @@
 -- =============================================================
--- OBoost Manager — Fix admin login (Jonathan Segev)
--- Run AFTER the earlier 06_admin_user.sql that left the user
--- unable to sign in (500 on /auth/v1/token).
+-- OBoost Manager — Fix admin login (template)
+-- Run AFTER the earlier 06_admin_user.sql if that migration left
+-- the target user unable to sign in (500 on /auth/v1/token).
+--
+-- This migration is a TEMPLATE. Replace the placeholder email
+-- below with the real account you are repairing before running.
 --
 -- Cause: manually-inserted auth.users rows are missing the
 -- matching row in auth.identities, which GoTrue requires for
@@ -10,6 +13,9 @@
 --
 -- This migration repairs the existing user in place (idempotent).
 -- =============================================================
+
+-- CHANGE_ME before running: the account being repaired.
+-- (Declared via a CTE since this file uses plain statements, not a DO block.)
 
 -- 1. Ensure no NULL string columns that GoTrue scans into strings
 update auth.users
@@ -21,7 +27,7 @@ set confirmation_token          = coalesce(confirmation_token, ''),
     phone_change                = coalesce(phone_change, ''),
     phone_change_token          = coalesce(phone_change_token, ''),
     reauthentication_token      = coalesce(reauthentication_token, '')
-where email = 'yonatansegev14@gmail.com';
+where email = 'manager@example.com';
 
 -- 2. Create the email identity row (required for password sign-in)
 insert into auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
@@ -33,7 +39,7 @@ select
   u.id::text,
   now(), now(), now()
 from auth.users u
-where u.email = 'yonatansegev14@gmail.com'
+where u.email = 'manager@example.com'
   and not exists (
     select 1 from auth.identities i
     where i.user_id = u.id and i.provider = 'email'
@@ -42,16 +48,16 @@ where u.email = 'yonatansegev14@gmail.com'
 -- 3. Make sure role is MANAGER (elevated) and employees row is linked
 update public.profiles
 set role = 'manager'
-where id = (select id from auth.users where email = 'yonatansegev14@gmail.com');
+where id = (select id from auth.users where email = 'manager@example.com');
 
 insert into public.employees (employee_id, first_name, last_name, email)
-select id, 'Jonathan', 'Segev', 'yonatansegev14@gmail.com'
+select id, 'Jane', 'Doe', 'manager@example.com'
 from auth.users
-where email = 'yonatansegev14@gmail.com'
+where email = 'manager@example.com'
 on conflict (employee_id) do nothing;
 
 -- Verify:
 -- select u.id, u.email, u.email_confirmed_at,
 --        (select count(*) from auth.identities i where i.user_id = u.id) as identities
--- from auth.users u where u.email = 'yonatansegev14@gmail.com';
--- select id, email, role from public.profiles where email = 'yonatansegev14@gmail.com';
+-- from auth.users u where u.email = 'manager@example.com';
+-- select id, email, role from public.profiles where email = 'manager@example.com';
