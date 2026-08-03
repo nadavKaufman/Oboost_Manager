@@ -4,9 +4,9 @@ An internal operations portal for managing self-service machines across multiple
 
 ## Live Demo
 
-Manager App: (coming soon)
+Manager App: [https://oboost-portal.netlify.app/](https://oboost-portal.netlify.app/)
 
-Marketing Website: (coming soon)
+Marketing Website: Coming soon
 
 ## Business problem
 
