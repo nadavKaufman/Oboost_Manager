@@ -32,9 +32,9 @@
    public landing/login pages (which have their own fixed-color sections)
    are unaffected. Toggled via the theme button in TopBar. */
 .dash-layout[data-theme="dark"] {
-  --bg:             #16181C;
-  --surface:        #1E2127;
-  --border:         #2E323A;
+  --bg:             #18181B;
+  --surface:        #1F1F23;
+  --border:         #2C2C31;
   --text:           #EDEEF0;
   --text-muted:     #A0A7B0;
   --text-secondary: #7B828C;
