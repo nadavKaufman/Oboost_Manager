@@ -16,6 +16,9 @@ Marketing Website: Coming soon
 ### Machines
 ![OBoost Manager machines page](docs/screenshots/machines.jpeg)
 
+### Employees
+![OBoost Manager employees page](docs/screenshots/employees.jpeg)
+
 ## Business problem
 
 OBoost operates fresh orange juice vending machines across multiple locations, with no shared system to track cleaning schedules, faults, or staff assignments. OBoost Manager replaces that ad-hoc tracking with a single, role-aware dashboard backed by a real database.
