@@ -311,6 +311,13 @@
   vertical-align: middle;
 }
 
+/* Machines icon keeps the OBoost orange identity regardless of the nav
+   item's hover/active text color — background/border/font-weight
+   transitions on .sidebar__nav-item are untouched. */
+.sidebar__nav-icon--accent {
+  color: var(--orange);
+}
+
 .sidebar__nav-label {
   white-space: nowrap;
   overflow: hidden;
@@ -405,6 +412,22 @@
   letter-spacing: -0.01em;
 }
 
+/* Overview page, mobile only: TopBar's title ("Operations Dashboard") is
+   dropped in favor of the OBoost logo the page itself renders in its own
+   `.page-header` (see the `.dashboard-overview-page .page-header__logo`
+   rule in dashboard.css) — that page already carries its own "Welcome
+   back, {name}" heading, so keeping both titles stacked here was
+   redundant and crowded on small screens. `TopBar` and the page content
+   are DOM siblings under `.dash-layout__main` (see DashboardLayout.tsx),
+   so `:has()` reaches across to the sibling page root — this affects only
+   the Overview route, at only this breakpoint; every other page's TopBar
+   title is untouched at every width, and TopBar.tsx itself is unchanged. */
+@media (max-width: 640px) {
+  .dash-layout__main:has(.dashboard-overview-page) .topbar__title {
+    display: none;
+  }
+}
+
 .topbar__right {
   display: flex;
   align-items: center;
@@ -479,4 +502,31 @@
 .topbar__logout:hover {
   background: var(--bg);
   color: var(--text);
+}
+
+/* ─── Loading screen (auth/profile resolving) ─── */
+
+.loading-screen {
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+
+.loading-screen__logo {
+  height: 32px;
+  width: auto;
+  animation: loading-screen-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes loading-screen-pulse {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-screen__logo {
+    animation: none;
+  }
 }

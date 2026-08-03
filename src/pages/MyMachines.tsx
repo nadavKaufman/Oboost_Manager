@@ -1,5 +1,5 @@
 import Machines from './Machines';
 
 export default function MyMachines() {
-  return <Machines title="My Machines" subtitle="Machines assigned to you." />;
+  return <Machines title="Machines" subtitle="View all OBoost machines and report cleaning or malfunctions." />;
 }

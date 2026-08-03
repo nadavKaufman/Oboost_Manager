@@ -5,21 +5,15 @@ import { useAuth } from '../context/AuthContext';
 import {
   getMachineDetails,
   updateMachine,
-  assignEmployeeToMachine,
-  unassignEmployeeFromMachine,
   uploadMachineImage,
-  uploadMalfunctionPhoto,
-  reportMachineMalfunction,
   markMaintenanceReportInProgress,
   resolveMaintenanceReport,
   markMachineCleaned,
   markMachineWorking,
-  getEmployees,
+  REPORT_STATUS_LABEL,
   type MachineDetails as MachineDetailsData,
-  type EmployeeRecord,
-  type ReportSeverity,
 } from '../lib/supabase';
-import { getMachineStatus } from '../types/machine';
+import { getMachineStatus, getCleaningElapsedText } from '../types/machine';
 import '../styles/layout.css';
 import '../styles/dashboard.css';
 
@@ -29,8 +23,8 @@ type LoadStatus = 'loading' | 'error' | 'ready';
 
 const STATUS_LABEL: Record<string, string> = {
   clean: 'Clean',
-  due_soon: 'Cleaning Due Soon',
-  overdue: 'Cleaning Overdue',
+  due_soon: 'Clean Due',
+  overdue: 'Overdue',
 };
 
 const FAULT_LABEL: Record<string, string> = { ok: 'OK', fault: 'Malfunction', maintenance: 'Maintenance' };
@@ -41,15 +35,7 @@ const FAULT_STATUS_CLASS: Record<string, string> = {
   maintenance: 'status-badge--maintenance',
 };
 
-const REPORT_STATUS_LABEL: Record<string, string> = {
-  open: 'Open',
-  in_progress: 'In Progress',
-  resolved: 'Resolved',
-  closed: 'Closed',
-};
-
-const EMPTY_REPORT_FORM = { description: '', faultType: '', severity: 'low' as ReportSeverity };
-const EMPTY_EDIT_FORM = { name: '', address: '', location: '', model: '', maintenanceNotes: '' };
+const EMPTY_EDIT_FORM = { name: '', location: '', maintenanceNotes: '' };
 
 export default function MachineDetails() {
   const { id } = useParams<{ id: string }>();
@@ -58,7 +44,6 @@ export default function MachineDetails() {
 
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [details, setDetails] = useState<MachineDetailsData | null>(null);
-  const [allEmployees, setAllEmployees] = useState<EmployeeRecord[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const [savingClean, setSavingClean] = useState(false);
@@ -69,14 +54,6 @@ export default function MachineDetails() {
   const [savingEdit, setSavingEdit] = useState(false);
 
   const [imageUploading, setImageUploading] = useState(false);
-
-  const [assignUserId, setAssignUserId] = useState('');
-  const [savingAssign, setSavingAssign] = useState(false);
-
-  const [reportForm, setReportForm] = useState(EMPTY_REPORT_FORM);
-  const [reportPhoto, setReportPhoto] = useState<File | null>(null);
-  const [submittingReport, setSubmittingReport] = useState(false);
-  const [reportSuccess, setReportSuccess] = useState<string | null>(null);
 
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [resolutionNotes, setResolutionNotes] = useState('');
@@ -93,9 +70,7 @@ export default function MachineDetails() {
     setDetails(data);
     setEditForm({
       name: data.machine.name,
-      address: data.machine.address,
       location: data.machine.location,
-      model: data.machine.model,
       maintenanceNotes: data.machine.maintenanceNotes,
     });
     setStatus('ready');
@@ -104,12 +79,6 @@ export default function MachineDetails() {
   useEffect(() => {
     load();
   }, [load]);
-
-  useEffect(() => {
-    if (isManager) {
-      getEmployees().then(({ employees }) => setAllEmployees(employees));
-    }
-  }, [isManager]);
 
   async function handleMarkCleaned() {
     if (!id) return;
@@ -167,66 +136,6 @@ export default function MachineDetails() {
     else await load();
   }
 
-  async function handleAssign(e: FormEvent) {
-    e.preventDefault();
-    if (!id || !assignUserId) return;
-    setActionError(null);
-    setSavingAssign(true);
-    const { error } = await assignEmployeeToMachine(id, assignUserId);
-    setSavingAssign(false);
-    if (error) {
-      setActionError(error);
-    } else {
-      setAssignUserId('');
-      await load();
-    }
-  }
-
-  async function handleUnassign(userId: string) {
-    if (!id) return;
-    setActionError(null);
-    const { error } = await unassignEmployeeFromMachine(id, userId);
-    if (error) setActionError(error);
-    else await load();
-  }
-
-  async function handleReportSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!id) return;
-    setActionError(null);
-    setReportSuccess(null);
-    setSubmittingReport(true);
-
-    let photoUrl: string | null = null;
-    if (reportPhoto) {
-      const { url, error: uploadError } = await uploadMalfunctionPhoto(reportPhoto);
-      if (uploadError) {
-        setActionError(uploadError);
-        setSubmittingReport(false);
-        return;
-      }
-      photoUrl = url;
-    }
-
-    const { error } = await reportMachineMalfunction({
-      machineId: id,
-      description: reportForm.description,
-      faultType: reportForm.faultType || 'other',
-      severity: reportForm.severity,
-      photoUrl,
-    });
-
-    setSubmittingReport(false);
-    if (error) {
-      setActionError(error);
-    } else {
-      setReportForm(EMPTY_REPORT_FORM);
-      setReportPhoto(null);
-      setReportSuccess('Malfunction reported.');
-      await load();
-    }
-  }
-
   async function handleMarkInProgress(reportId: string) {
     setActionError(null);
     const { error } = await markMaintenanceReportInProgress(reportId);
@@ -277,15 +186,13 @@ export default function MachineDetails() {
   const { machine } = details;
   const { status: cleanStatus, daysSinceCleaned } = getMachineStatus(machine);
   const openReports = details.malfunctionHistory.filter(r => r.status === 'open' || r.status === 'in_progress');
-  const assignedIds = new Set(details.assignedEmployees.map(e => e.id));
-  const assignableEmployees = allEmployees.filter(e => !assignedIds.has(e.employee_id));
 
   return (
     <DashboardLayout title={machine.name} currentUser={FALLBACK_USER}>
       <div className="dashboard-page">
         <div className="page-header">
           <h2 className="page-header__title">{machine.name}</h2>
-          <p className="page-header__subtitle">{machine.address || machine.location || 'No address on file'}</p>
+          <p className="page-header__subtitle">{machine.location || 'No location on file'}</p>
         </div>
 
         {actionError && (
@@ -316,14 +223,6 @@ export default function MachineDetails() {
               <span>{machine.location || '—'}</span>
             </div>
             <div className="machine-detail-row">
-              <span className="machine-detail-label">Address</span>
-              <span>{machine.address || '—'}</span>
-            </div>
-            <div className="machine-detail-row">
-              <span className="machine-detail-label">Model</span>
-              <span>{machine.model || '—'}</span>
-            </div>
-            <div className="machine-detail-row">
               <span className="machine-detail-label">Machine Status</span>
               <span className={`status-badge status-badge--${machine.isActive ? 'clean' : 'overdue'}`}>
                 <span className="status-badge__dot" />
@@ -332,28 +231,21 @@ export default function MachineDetails() {
             </div>
             <div className="machine-detail-row">
               <span className="machine-detail-label">Cleaning</span>
-              <span className={`status-badge status-badge--${cleanStatus}`}>
-                <span className="status-badge__dot" />
+              <span
+                className={`status-badge status-badge--${cleanStatus}${cleanStatus === 'overdue' ? ' status-badge--cleaning-overdue' : ''}`}
+              >
                 {STATUS_LABEL[cleanStatus]}
               </span>
             </div>
             <div className="machine-detail-row">
               <span className="machine-detail-label">Last Cleaned</span>
-              <span>{daysSinceCleaned === null ? 'Never cleaned' : `${daysSinceCleaned}d ago`}</span>
+              <span>{getCleaningElapsedText(daysSinceCleaned)}</span>
             </div>
             <div className="machine-detail-row">
               <span className="machine-detail-label">Malfunction</span>
               <span className={`status-badge ${FAULT_STATUS_CLASS[machine.faultStatus]}`}>
                 <span className="status-badge__dot" />
                 {FAULT_LABEL[machine.faultStatus]}
-              </span>
-            </div>
-            <div className="machine-detail-row">
-              <span className="machine-detail-label">Assigned To</span>
-              <span>
-                {details.assignedEmployees.length === 0
-                  ? '—'
-                  : details.assignedEmployees.map(e => e.name).join(', ')}
               </span>
             </div>
             <div className="machine-detail-row">
@@ -375,6 +267,9 @@ export default function MachineDetails() {
           <button className="btn-mark-clean" disabled={savingClean} onClick={handleMarkCleaned}>
             {savingClean ? 'Saving…' : 'Mark Cleaned'}
           </button>
+          <Link className="btn-report-issue" to={`/machines/${id}/report-malfunction`}>
+            Report Malfunction
+          </Link>
           {isManager && machine.faultStatus === 'fault' && (
             <button className="btn-mark-working" disabled={savingWorking} onClick={handleMarkWorking}>
               {savingWorking ? 'Saving…' : 'Mark as Working'}
@@ -415,24 +310,7 @@ export default function MachineDetails() {
                   className="employee-form__input"
                   value={editForm.location}
                   onChange={e => setEditForm(prev => ({ ...prev, location: e.target.value }))}
-                />
-              </div>
-              <div className="employee-form__field">
-                <label className="employee-form__label" htmlFor="m-address">Address</label>
-                <input
-                  id="m-address"
-                  className="employee-form__input"
-                  value={editForm.address}
-                  onChange={e => setEditForm(prev => ({ ...prev, address: e.target.value }))}
-                />
-              </div>
-              <div className="employee-form__field">
-                <label className="employee-form__label" htmlFor="m-model">Model</label>
-                <input
-                  id="m-model"
-                  className="employee-form__input"
-                  value={editForm.model}
-                  onChange={e => setEditForm(prev => ({ ...prev, model: e.target.value }))}
+                  required
                 />
               </div>
               <div className="employee-form__field">
@@ -447,65 +325,6 @@ export default function MachineDetails() {
               <div className="employee-form__actions">
                 <button type="submit" className="btn-add-employee" disabled={savingEdit}>
                   {savingEdit ? 'Saving…' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {isManager && (
-          <div className="machine-section">
-            <div className="machine-section__header">
-              <span className="machine-section__title">Assigned Employees</span>
-            </div>
-            <table className="machine-table">
-              <thead>
-                <tr>
-                  <th>Employee</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {details.assignedEmployees.length === 0 ? (
-                  <tr>
-                    <td colSpan={2}>
-                      <span className="machine-model">No employees assigned.</span>
-                    </td>
-                  </tr>
-                ) : (
-                  details.assignedEmployees.map(emp => (
-                    <tr key={emp.id}>
-                      <td>{emp.name}</td>
-                      <td>
-                        <button className="btn-report-issue" onClick={() => handleUnassign(emp.id)}>
-                          Unassign
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-            <form className="employee-form__body" onSubmit={handleAssign}>
-              <div className="employee-form__field">
-                <label className="employee-form__label" htmlFor="assign-emp">Assign Employee</label>
-                <select
-                  id="assign-emp"
-                  className="employee-form__select"
-                  value={assignUserId}
-                  onChange={e => setAssignUserId(e.target.value)}
-                >
-                  <option value="">Select an employee…</option>
-                  {assignableEmployees.map(emp => (
-                    <option key={emp.employee_id} value={emp.employee_id}>
-                      {`${emp.first_name} ${emp.last_name}`.trim()}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="employee-form__actions">
-                <button type="submit" className="btn-add-employee" disabled={!assignUserId || savingAssign}>
-                  {savingAssign ? 'Assigning…' : 'Assign'}
                 </button>
               </div>
             </form>
@@ -536,63 +355,6 @@ export default function MachineDetails() {
               </tbody>
             </table>
           )}
-        </div>
-
-        <div className="employee-form">
-          <div className="machine-section__header">
-            <span className="machine-section__title">Report Malfunction</span>
-          </div>
-          <form className="employee-form__body" onSubmit={handleReportSubmit}>
-            <div className="employee-form__field">
-              <label className="employee-form__label" htmlFor="r-desc">Description</label>
-              <input
-                id="r-desc"
-                className="employee-form__input"
-                value={reportForm.description}
-                onChange={e => setReportForm(prev => ({ ...prev, description: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="employee-form__field">
-              <label className="employee-form__label" htmlFor="r-type">Malfunction Type (optional)</label>
-              <input
-                id="r-type"
-                className="employee-form__input"
-                value={reportForm.faultType}
-                onChange={e => setReportForm(prev => ({ ...prev, faultType: e.target.value }))}
-              />
-            </div>
-            <div className="employee-form__field">
-              <label className="employee-form__label" htmlFor="r-severity">Severity</label>
-              <select
-                id="r-severity"
-                className="employee-form__select"
-                value={reportForm.severity}
-                onChange={e => setReportForm(prev => ({ ...prev, severity: e.target.value as ReportSeverity }))}
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
-            <div className="employee-form__field">
-              <label className="employee-form__label" htmlFor="r-photo">Photo (optional)</label>
-              <input
-                id="r-photo"
-                type="file"
-                accept="image/*"
-                className="employee-form__input"
-                onChange={e => setReportPhoto(e.target.files?.[0] ?? null)}
-              />
-            </div>
-            <div className="employee-form__actions">
-              <button type="submit" className="btn-add-employee" disabled={submittingReport}>
-                {submittingReport ? 'Reporting…' : 'Report Malfunction'}
-              </button>
-              {reportSuccess && <span className="employee-form__success">{reportSuccess}</span>}
-            </div>
-          </form>
         </div>
 
         <div className="machine-section">

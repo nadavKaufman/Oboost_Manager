@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Machines from './pages/Machines';
 import MachineDetails from './pages/MachineDetails';
+import ReportMalfunction from './pages/ReportMalfunction';
 import Employees from './pages/Employees';
 import Reports from './pages/Reports';
 import Tasks from './pages/Tasks';
@@ -11,6 +12,7 @@ import Inventory from './pages/Inventory';
 import MyMachines from './pages/MyMachines';
 import MyTasks from './pages/MyTasks';
 import MyActivity from './pages/MyActivity';
+import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import './App.css';
 
@@ -42,6 +44,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <MachineDetails />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/machines/:id/report-malfunction"
+            element={
+              <ProtectedRoute>
+                <ReportMalfunction />
               </ProtectedRoute>
             }
           />
@@ -101,6 +111,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

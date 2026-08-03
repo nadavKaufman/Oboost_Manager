@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, type ChangeEvent } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import CleaningTaskBadge from '../components/dashboard/CleaningTaskBadge';
 import { getTasks, completeTask, uploadTaskCompletionPhoto, type TaskRecord } from '../lib/supabase';
 import '../styles/layout.css';
 import '../styles/dashboard.css';
@@ -16,6 +17,7 @@ export default function MyTasks() {
   const [notes, setNotes] = useState('');
   const [photo, setPhoto] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [completionSuccess, setCompletionSuccess] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setStatus('loading');
@@ -36,8 +38,9 @@ export default function MyTasks() {
     setPhoto(e.target.files?.[0] ?? null);
   }
 
-  async function handleComplete(taskId: string) {
+  async function handleComplete(taskId: string, isCleaningTask: boolean) {
     setActionError(null);
+    setCompletionSuccess(null);
     setSaving(true);
 
     let photoUrl: string | null = null;
@@ -59,6 +62,9 @@ export default function MyTasks() {
       setCompletingId(null);
       setNotes('');
       setPhoto(null);
+      setCompletionSuccess(
+        isCleaningTask ? 'Task completed — machine marked as cleaned.' : 'Task completed.'
+      );
       await load();
     }
   }
@@ -77,6 +83,8 @@ export default function MyTasks() {
             {actionError}
           </div>
         )}
+
+        {completionSuccess && <p className="employee-form__success">{completionSuccess}</p>}
 
         {status === 'loading' && <p className="employee-empty">Loading tasks…</p>}
 
@@ -110,6 +118,7 @@ export default function MyTasks() {
                   <tr key={task.id}>
                     <td>
                       <div className="machine-name">{task.title}</div>
+                      {task.taskType === 'cleaning' && <CleaningTaskBadge />}
                       {task.description && <div className="machine-location">{task.description}</div>}
                     </td>
                     <td>{task.machineName ?? '—'}</td>
@@ -142,14 +151,23 @@ export default function MyTasks() {
                               className="employee-form__input"
                               onChange={handlePhotoChange}
                             />
-                            <button className="btn-mark-clean" disabled={saving} onClick={() => handleComplete(task.id)}>
+                            <button
+                              className="btn-mark-clean"
+                              disabled={saving}
+                              onClick={() => handleComplete(task.id, task.taskType === 'cleaning')}
+                            >
                               {saving ? 'Saving…' : 'Confirm'}
                             </button>
                           </div>
                         ) : (
                           <button
                             className="btn-mark-clean"
-                            onClick={() => { setCompletingId(task.id); setNotes(''); setPhoto(null); }}
+                            onClick={() => {
+                              setCompletingId(task.id);
+                              setNotes('');
+                              setPhoto(null);
+                              setCompletionSuccess(null);
+                            }}
                           >
                             Mark Completed
                           </button>

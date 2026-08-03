@@ -2,16 +2,14 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import MachineTable from '../components/dashboard/MachineTable';
-import { type Machine, type Employee } from '../types/machine';
+import { type Machine } from '../types/machine';
 import { useAuth } from '../context/AuthContext';
 import {
   getMachines,
   markMachineWorking,
   markMachineCleaned,
-  getEmployees,
   createMachine,
   uploadMachineImage,
-  type EmployeeRecord,
 } from '../lib/supabase';
 import '../styles/layout.css';
 import '../styles/dashboard.css';
@@ -25,22 +23,10 @@ type MachinesStatus = 'loading' | 'error' | 'ready';
 
 const EMPTY_MACHINE_FORM = {
   name: '',
-  address: '',
   location: '',
-  model: '',
   maintenanceNotes: '',
   isActive: true,
 };
-
-function mapEmployees(rows: EmployeeRecord[]): Employee[] {
-  return rows.map(row => ({
-    id: row.employee_id,
-    name: `${row.first_name} ${row.last_name}`.trim(),
-    role: row.role,
-    assignedMachineIds: [],
-    activeTaskCount: 0,
-  }));
-}
 
 interface Props {
   title?: string;
@@ -54,7 +40,6 @@ export default function Machines({
   const { profile, session, loading } = useAuth();
   const [machines, setMachines] = useState<Machine[]>([]);
   const [machinesStatus, setMachinesStatus] = useState<MachinesStatus>('loading');
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [savingWorkingIds, setSavingWorkingIds] = useState<Set<string>>(new Set());
   const [savingCleanIds, setSavingCleanIds] = useState<Set<string>>(new Set());
   const [actionError, setActionError] = useState<string | null>(null);
@@ -76,9 +61,6 @@ export default function Machines({
         setMachines(rows);
         setMachinesStatus('ready');
       }
-    });
-    getEmployees().then(({ employees }) => {
-      setEmployees(mapEmployees(employees));
     });
   }, [loading, session]);
 
@@ -127,17 +109,15 @@ export default function Machines({
     setCreateError(null);
     setCreatedMachine(null);
 
-    if (!machineForm.name.trim() || !machineForm.address.trim()) {
-      setCreateError('Name and address are required.');
+    if (!machineForm.name.trim() || !machineForm.location.trim()) {
+      setCreateError('Name and location are required.');
       return;
     }
 
     setCreatingMachine(true);
     const { id, error } = await createMachine({
       name: machineForm.name,
-      address: machineForm.address,
       location: machineForm.location,
-      model: machineForm.model,
       maintenanceNotes: machineForm.maintenanceNotes,
       isActive: machineForm.isActive,
     });
@@ -170,7 +150,7 @@ export default function Machines({
 
   return (
     <DashboardLayout title={title} currentUser={FALLBACK_USER}>
-      <div className="dashboard-page">
+      <div className="dashboard-page machines-page">
         <div className="page-header">
           <h2 className="page-header__title">{title}</h2>
           <p className="page-header__subtitle">{subtitle}</p>
@@ -201,7 +181,6 @@ export default function Machines({
         {machinesStatus === 'ready' && machines.length > 0 && (
           <MachineTable
             machines={machines}
-            employees={employees}
             onMarkCleaned={handleMarkCleaned}
             currentUserRole={profile?.role}
             savingWorkingIds={savingWorkingIds}
@@ -227,31 +206,14 @@ export default function Machines({
                 />
               </div>
               <div className="employee-form__field">
-                <label className="employee-form__label" htmlFor="mach-address">Address</label>
-                <input
-                  id="mach-address"
-                  className="employee-form__input"
-                  value={machineForm.address}
-                  onChange={e => setMachineForm(prev => ({ ...prev, address: e.target.value }))}
-                  required
-                />
-              </div>
-              <div className="employee-form__field">
                 <label className="employee-form__label" htmlFor="mach-location">Location</label>
                 <input
                   id="mach-location"
                   className="employee-form__input"
+                  placeholder="e.g. Dizengoff Center, Tel Aviv"
                   value={machineForm.location}
                   onChange={e => setMachineForm(prev => ({ ...prev, location: e.target.value }))}
-                />
-              </div>
-              <div className="employee-form__field">
-                <label className="employee-form__label" htmlFor="mach-model">Model</label>
-                <input
-                  id="mach-model"
-                  className="employee-form__input"
-                  value={machineForm.model}
-                  onChange={e => setMachineForm(prev => ({ ...prev, model: e.target.value }))}
+                  required
                 />
               </div>
               <div className="employee-form__field">

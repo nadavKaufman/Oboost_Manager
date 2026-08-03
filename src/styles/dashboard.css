@@ -34,6 +34,15 @@
   color: var(--text-muted);
 }
 
+/* OBoost branding mark shown only in the Overview page's mobile header (see
+   the `@media (max-width: 640px) { .dashboard-overview-page ... }` rules
+   under "Overview: asymmetric desktop grid" below) — hidden by default so
+   every other page's `.page-header` (which doesn't render this element
+   anyway) and the Overview page's own desktop view are both unaffected. */
+.page-header__logo {
+  display: none;
+}
+
 /* ─── Stat cards ─── */
 
 .stat-cards {
@@ -49,10 +58,23 @@
   }
 }
 
+/* A single stat card (e.g. Inventory's Current Stock) should stay
+   full-width and prominent instead of being squeezed by the 2-column
+   rule below, which assumes several cards side by side. */
+.stat-cards--single {
+  grid-template-columns: 1fr;
+  max-width: 320px;
+}
+
 @media (max-width: 420px) {
   .stat-cards {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
+  }
+
+  .stat-cards--single {
+    grid-template-columns: 1fr;
+    max-width: none;
   }
 }
 
@@ -64,14 +86,31 @@
   box-shadow: var(--shadow-sm);
 }
 
+.stat-card__label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
 .stat-card__label {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--text-secondary);
-  margin-bottom: 10px;
 }
+
+.stat-card__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.stat-card__dot--red   { background: var(--red); }
+.stat-card__dot--amber { background: var(--amber); }
+.stat-card__dot--green { background: var(--green); }
 
 .stat-card__value {
   font-size: 34px;
@@ -89,6 +128,88 @@
 .stat-card__subtext {
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+/* Hero variant — used for the "Needs Attention" zone on the Overview page,
+   where a handful of metrics (Malfunctioning, Overdue, Overdue Tasks) need
+   to visually outweigh the rest of the dashboard. Same tokens, just a
+   larger stage; the severity dot only appears here since these are the
+   only cards prominent enough to warrant one. */
+.stat-card--lg {
+  padding: 22px 22px 20px;
+}
+
+.stat-card--lg .stat-card__value {
+  font-size: 46px;
+}
+
+.stat-card--lg .stat-card__label {
+  font-size: 12px;
+}
+
+/* ─── Stat strip (compact reference row) ───
+   Dense, low-emphasis grouping for routine reference numbers (Active
+   Machines, Active Employees, Pending Tasks, Orange Stock) — deliberately
+   smaller and quieter than .stat-card, since these figures don't need
+   individual card weight. */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-strip__item {
+  padding: 16px 18px;
+  border-left: 1px solid var(--border);
+}
+
+.stat-strip__item:first-child {
+  border-left: none;
+}
+
+.stat-strip__value {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--text);
+}
+
+.stat-strip__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.stat-strip__subtext {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+@media (max-width: 640px) {
+  .stat-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stat-strip__item {
+    border-top: 1px solid var(--border);
+  }
+
+  .stat-strip__item:nth-child(1),
+  .stat-strip__item:nth-child(2) {
+    border-top: none;
+  }
+
+  .stat-strip__item:nth-child(2n+1) {
+    border-left: none;
+  }
 }
 
 /* ─── Recent activity ─── */
@@ -136,6 +257,150 @@
   justify-content: space-between;
   padding: 16px 24px;
   border-bottom: 1px solid var(--border);
+}
+
+/* ─── Collapsible section (e.g. Inventory movement history) ─── */
+
+.machine-section__header.collapsible-header {
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: background 0.13s;
+}
+
+.machine-section__header.collapsible-header:hover {
+  background: var(--bg);
+}
+
+.collapsible-header__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.collapsible-chevron {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.collapsible-chevron--open {
+  transform: rotate(180deg);
+}
+
+.collapsible__body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+}
+
+.collapsible__body--open {
+  grid-template-rows: 1fr;
+}
+
+.collapsible__body-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapsible__body,
+  .collapsible-chevron {
+    transition: none;
+  }
+}
+
+/* ─── Collapsible section: mobile-only disclosure ───
+   Opt-in via CollapsibleSection's `mobileOnly` prop (used by Dashboard's
+   Recent Activity panel). This baseline (no media query — i.e. desktop and
+   everything above the breakpoint below) makes the section behave exactly
+   like a plain always-open panel: no chevron, no count badge, header inert,
+   body always fully rendered — matching how Recent Activity looked before
+   this component wrapped it. Only inside the max-width query below does it
+   become an actual tap-to-expand disclosure. */
+.collapsible--mobile-only .collapsible-header {
+  cursor: default;
+}
+
+.collapsible--mobile-only .collapsible-header:hover {
+  background: none;
+}
+
+.collapsible--mobile-only .collapsible-chevron {
+  display: none;
+}
+
+.collapsible--mobile-only .machine-section__count {
+  display: none;
+}
+
+.collapsible--mobile-only .collapsible__body,
+.collapsible--mobile-only .collapsible__body-inner {
+  display: contents;
+}
+
+@media (max-width: 1000px) {
+  .collapsible--mobile-only .collapsible-header {
+    cursor: pointer;
+  }
+
+  .collapsible--mobile-only .collapsible-header:hover {
+    background: var(--bg);
+  }
+
+  .collapsible--mobile-only .collapsible-chevron {
+    display: inline-block;
+  }
+
+  .collapsible--mobile-only .machine-section__count {
+    display: inline;
+  }
+
+  .collapsible--mobile-only .collapsible__body {
+    display: grid;
+    grid-template-rows: 0fr;
+  }
+
+  .collapsible--mobile-only .collapsible__body--open {
+    grid-template-rows: 1fr;
+  }
+
+  .collapsible--mobile-only .collapsible__body-inner {
+    display: block;
+    overflow: hidden;
+    min-height: 0;
+  }
+}
+
+/* ─── Machine row: per-row mobile accordion ───
+   Same `display: contents` no-op trick as `.collapsible--mobile-only` above,
+   applied per-row instead of per-section: at baseline (desktop, and any
+   width above the Machines mobile-card breakpoint) these wrapper divs are
+   removed from the box model entirely, so MachineTable's `expandedId` state
+   has zero visual effect and the elapsed-date/actions content always
+   renders exactly as it did before this wrapper existed. Only inside the
+   `max-width: 767px` query (see "Machines: dedicated mobile card
+   treatment" below, the same breakpoint the rest of that mobile layout
+   already uses) does it become a real animated accordion body, and only
+   one row's copy has `--open` at a time since MachineTable holds a single
+   `expandedId` rather than each row managing its own boolean. */
+.machine-row-collapse,
+.machine-row-collapse__inner {
+  display: contents;
+}
+
+.machine-row-chevron {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .machine-row-collapse {
+    transition: none;
+  }
 }
 
 .machine-section__title {
@@ -204,6 +469,39 @@
   margin-top: 2px;
 }
 
+/* ─── Machine thumbnail (Machines list) ─── */
+
+.machine-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.machine-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  overflow: hidden;
+  color: var(--text-muted);
+}
+
+.machine-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.machine-thumb__icon {
+  font-size: 20px;
+}
+
 .machine-model {
   font-size: 13px;
   color: var(--text-muted);
@@ -245,6 +543,21 @@
   height: 5px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+.status-badge__icon {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+}
+
+/* Task-type badge (Cleaning) — a neutral orange identity, distinct from
+   the green/amber/red cleaning-status badges so it never reads as a
+   status. General tasks stay undecorated on purpose. */
+.status-badge--task-type {
+  background: var(--orange-tint);
+  color: var(--orange);
+  margin-top: 4px;
 }
 
 .status-badge--clean {
@@ -292,8 +605,28 @@
 }
 
 @keyframes status-pulse-overdue {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.4; }
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.1); }
+}
+
+/* Cleaning-status "Overdue" badge — the whole badge pulses (not just a dot),
+   since the badge now carries a broom icon instead of the dot. Scoped to
+   its own modifier class rather than the shared .status-badge--overdue so
+   the unrelated Malfunction badge (which also uses --overdue for its red
+   "fault" state) keeps its existing dot-only pulse untouched. */
+.status-badge--cleaning-overdue {
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .status-badge--cleaning-overdue {
+    animation: status-badge-pulse-overdue 2s ease-in-out infinite;
+  }
+}
+
+@keyframes status-badge-pulse-overdue {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.08); }
 }
 
 /* ─── Machine details page ─── */
@@ -324,15 +657,16 @@
 
 .machine-detail-image img {
   width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
+  background: var(--bg);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
 }
 
 .machine-detail-image__placeholder {
   width: 100%;
-  aspect-ratio: 1;
+  aspect-ratio: 3 / 4;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -804,5 +1138,701 @@
     text-align: center;
     padding: 10px 16px;
     font-size: 13px;
+  }
+}
+
+/* ─── Inventory: dedicated mobile card treatment ───
+   Scoped to .inventory-page so every other page keeps the generic
+   stacked-row layout above untouched, and desktop is unaffected
+   since this only applies below 767px. Each row becomes its own
+   elevated card with breathing room, instead of a dense stacked
+   list, and the primary field (Type / Name / Part) is promoted
+   above the secondary metadata beneath it. */
+@media (max-width: 767px) {
+  .inventory-page .machine-section {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    overflow: visible;
+    margin-bottom: 24px;
+  }
+
+  .inventory-page .machine-section__header {
+    padding: 0 4px 12px;
+    border-bottom: none;
+  }
+
+  .inventory-page .employee-form {
+    margin-bottom: 24px;
+  }
+
+  .inventory-page .machine-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .inventory-page .machine-table tbody tr {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 16px 18px 18px;
+  }
+
+  .inventory-page .machine-table tbody tr:last-child {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .inventory-page .machine-table td:first-child {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .inventory-page .machine-table td:not(:first-child) {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .inventory-page .machine-table td:last-child {
+    padding-top: 12px;
+  }
+
+  .inventory-page .btn-report-issue,
+  .inventory-page .btn-add-employee {
+    width: 100%;
+    text-align: center;
+    padding: 12px 18px;
+    font-size: 14px;
+  }
+
+  .inventory-page .status-badge {
+    font-size: 11px;
+  }
+
+  .inventory-page .employee-form__input,
+  .inventory-page .employee-form__select {
+    padding: 12px 14px;
+    font-size: 15px;
+  }
+}
+
+/* ─── Dashboard overview: asymmetric hierarchy grid ───
+   Replaces the old flat 9-card wall. Desktop groups metrics by urgency
+   into three tiers (Needs Attention / Warnings / At a Glance) and puts
+   Recent Activity beside the two urgent tiers instead of stacked below
+   everything, so it reads as part of the dashboard's main content. Below
+   the collapse breakpoint the grid drops to a single column and reorders
+   to critical → warnings → activity → reference, so what matters most on
+   a phone is what you see first, and the routine reference numbers sink
+   to the bottom the way they should.
+
+   Grid areas:
+     "critical activity"
+     "secondary activity"
+     "reference reference"
+*/
+.overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  grid-template-areas:
+    "critical activity"
+    "secondary activity"
+    "reference reference";
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.overview-critical  { grid-area: critical; }
+.overview-secondary { grid-area: secondary; }
+.overview-activity  { grid-area: activity; }
+.overview-reference { grid-area: reference; }
+
+/* Desktop no-op: keeps .overview-secondary/.overview-reference as direct
+   grid children (in their existing grid-areas, above) so wrapping them for
+   mobile grouping has zero effect on desktop layout. Mirrors the
+   `mobileOnly` CollapsibleSection technique, just inverted. */
+.overview-quiet {
+  display: contents;
+}
+
+/* Mobile-only hero/secondary swap cards (Pending Tasks in the hero row,
+   demoted Overdue Tasks in the Warnings row) — hidden by default so
+   desktop is unaffected; only shown below the 1000px breakpoint. */
+.overview-critical__mobile-only,
+.overview-secondary__mobile-only {
+  display: none;
+}
+
+.overview-section-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.overview-critical__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.overview-secondary {
+  margin-top: 20px;
+}
+
+.overview-secondary__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+}
+
+.overview-reference {
+  margin-top: 4px;
+}
+
+/* Activity panel stretches to match the full height of the critical +
+   secondary column beside it, so the feed feels like an equal, integrated
+   partner rather than an afterthought squeezed into leftover space. */
+.overview-activity {
+  height: 100%;
+}
+
+.machine-section--activity-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.machine-section--activity-panel .activity-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+@media (max-width: 1000px) {
+  /* Mobile hierarchy: hero (no header) → activity (collapsed by default,
+     minimal footprint) → one merged "quiet" reference zone. Down from 4
+     visually-fragmented sections/labels to 3 zones and 1 surviving label. */
+  .overview-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "critical"
+      "activity"
+      "quiet";
+  }
+
+  .overview-activity,
+  .machine-section--activity-panel {
+    height: auto;
+  }
+
+  .machine-section--activity-panel .activity-list {
+    overflow-y: visible;
+  }
+
+  /* Hero zone needs no header on mobile — per product direction, the 3 big
+     numbers speak for themselves. Desktop keeps "Needs Attention". */
+  .overview-critical .overview-section-label {
+    display: none;
+  }
+
+  /* Swap the 3rd hero card: desktop shows Overdue Tasks, mobile promotes
+     Pending Tasks (explicit top-3: Malfunctioning, Overdue Cleaning,
+     Pending Tasks). Overdue Tasks reappears smaller in the quiet zone. */
+  .overview-critical__desktop-only {
+    display: none;
+  }
+
+  .overview-critical__mobile-only,
+  .overview-secondary__mobile-only {
+    display: block;
+  }
+
+  /* .overview-quiet flips from display:contents (desktop) to a real flex
+     column occupying the single "quiet" grid-area, merging Warnings + At a
+     Glance into one de-emphasized zone. `order` lets the reference strip's
+     label lead visually without changing DOM/JSX order. */
+  .overview-quiet {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    grid-area: quiet;
+  }
+
+  .overview-secondary {
+    order: 2;
+    margin-top: 0;
+  }
+
+  .overview-reference {
+    order: 1;
+    margin-top: 0;
+  }
+
+  /* Only "At a Glance" survives as the single header for the merged zone. */
+  .overview-secondary .overview-section-label {
+    display: none;
+  }
+
+  /* Pending Tasks now has its own hero card above (see
+     .overview-critical__mobile-only), so hide the duplicate entry in this
+     strip on mobile — desktop keeps all 4 items unchanged. Reflowing to 3
+     columns (rather than leaving the 4th track empty) keeps the remaining
+     items evenly filled. */
+  .overview-reference .stat-strip {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .overview-reference .stat-strip__item[data-key="pending-tasks"] {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Mobile-only hero header redo: the TopBar's global "Operations Dashboard"
+     title (see the `:has()` rule in layout.css-adjacent section below)
+     and this page's own subtitle both drop away, replaced by the OBoost
+     mark, so priority reads top-to-bottom as branding → "Welcome back,
+     {name}" → the Needs Attention hero row, with one fewer competing text
+     block in between. Desktop keeps the title/subtitle exactly as-is. */
+  .dashboard-overview-page .page-header {
+    margin-bottom: 18px;
+  }
+
+  .dashboard-overview-page .page-header__logo {
+    display: block;
+    height: 28px;
+    width: auto;
+    margin-bottom: 20px;
+  }
+
+  /* Two-line hero: "Welcome back" (eyebrow) stacked above the name
+     (primary heading). Desktop keeps rendering this same markup as one
+     inline line — ", " (page-header__title-sep) is only hidden and the
+     stack/sizing below is only applied inside this mobile block, so the
+     single source of truth for {displayName} never duplicates in the DOM. */
+  .dashboard-overview-page .page-header__title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .dashboard-overview-page .page-header__title-sep {
+    display: none;
+  }
+
+  .dashboard-overview-page .page-header__eyebrow {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+
+  .dashboard-overview-page .page-header__name {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .dashboard-overview-page .page-header__subtitle {
+    display: none;
+  }
+
+  .overview-grid {
+    gap: 14px;
+  }
+
+  .overview-quiet {
+    gap: 14px;
+  }
+
+  /* "Needs Attention" stays the visually dominant row, but 2-up instead of
+     3 full-width stacked cards — cuts roughly a card's worth of scroll
+     while the cards stay large enough to read at a glance. The odd last
+     card spans the full row so the layout still reads as intentional. */
+  .overview-critical__cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .overview-critical__cards > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  /* Same treatment for the demoted Overdue Tasks card in Warnings. */
+  .overview-secondary__cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .overview-secondary__cards > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  .overview-critical__cards,
+  .overview-secondary__cards {
+    gap: 8px;
+  }
+
+  .dashboard-overview-page .stat-card--lg {
+    padding: 16px 14px;
+  }
+
+  .dashboard-overview-page .stat-card--lg .stat-card__value {
+    font-size: 32px;
+  }
+
+  .dashboard-overview-page .stat-card--lg .stat-card__label {
+    font-size: 11px;
+  }
+
+  .dashboard-overview-page .stat-card {
+    padding: 14px 14px;
+  }
+
+  .dashboard-overview-page .stat-card__label-row {
+    margin-bottom: 6px;
+  }
+
+  .overview-secondary .stat-card {
+    padding: 12px 14px;
+  }
+
+  .overview-secondary .stat-card__value {
+    font-size: 24px;
+  }
+
+  .overview-secondary .stat-card__label {
+    font-size: 10px;
+  }
+
+  .overview-secondary .stat-card__subtext {
+    font-size: 11px;
+  }
+
+  .dashboard-overview-page .machine-section__header {
+    padding: 14px 16px;
+  }
+
+  .dashboard-overview-page .activity-list {
+    padding: 4px 16px 16px;
+  }
+
+  .dashboard-overview-page .activity-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 12px 0;
+  }
+
+  .dashboard-overview-page .activity-item__time {
+    font-size: 11px;
+  }
+
+  /* Re-assert the 2-column phone layout for the 3 remaining visible items
+     (Pending Tasks stays hidden per the ≤1000px rule above) — otherwise
+     this block's higher-specificity 3-column rule would win over the
+     shared 2-column .stat-strip rule at this narrower width. With only 3
+     items, the last one (Orange Stock) wraps alone into row 2, so it also
+     needs its left divider removed — the shared `:nth-child(2n+1)` rule
+     doesn't catch it since it's DOM position 4, not 3. */
+  .overview-reference .stat-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .overview-reference .stat-strip__item[data-key="orange-stock"] {
+    border-left: none;
+  }
+}
+
+/* ─── Machines: dedicated mobile card treatment ───
+   Same elevated-card pattern as Inventory, adapted to Machines' own
+   columns (machine name + location is the primary identity, already
+   handled by .machine-cell/.machine-name/.machine-location). Scoped
+   to .machines-page, set on Machines.tsx's root — MyMachines.tsx
+   renders that same component/root, so the employee-facing "Machines"
+   page picks this up automatically. Only below 767px; desktop table
+   is untouched. */
+@media (max-width: 767px) {
+  .machines-page .machine-section {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    overflow: visible;
+    margin-bottom: 24px;
+  }
+
+  .machines-page .machine-section__header {
+    padding: 0 4px 12px;
+    border-bottom: none;
+  }
+
+  .machines-page .employee-form {
+    margin-bottom: 24px;
+  }
+
+  .machines-page .machine-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .machines-page .machine-table tbody tr {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 14px 18px 16px;
+    /* Compact accordion layout: the machine cell stays full-width up top,
+       the 3 status badges wrap together in their own row beneath it, and
+       actions occupy full width when revealed. See flex-basis rules below. */
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 8px;
+    row-gap: 8px;
+  }
+
+  .machines-page .machine-table tbody tr:last-child {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .machines-page .machine-table td {
+    width: auto;
+  }
+
+  .machines-page .machine-table td:first-child {
+    flex: 0 0 100%;
+    cursor: pointer;
+  }
+
+  .machines-page .machine-table td[data-label="Status"],
+  .machines-page .machine-table td[data-label="Cleaning"],
+  .machines-page .machine-table td[data-label="Malfunction"] {
+    flex: 0 0 auto;
+    max-width: 100%;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  /* The 3 collapsed badges carry their own text (Active/Clean/OK), so the
+     generic data-label captions (STATUS/CLEANING/MALFUNCTION) above them
+     would just be redundant clutter in this compact layout. Hidden here
+     only — every other page keeps the generic fallback caption. */
+  .machines-page .machine-table td[data-label="Status"]::before,
+  .machines-page .machine-table td[data-label="Cleaning"]::before,
+  .machines-page .machine-table td[data-label="Malfunction"]::before {
+    display: none;
+  }
+
+  .machines-page .machine-table td[data-label="Actions"] {
+    flex: 0 0 100%;
+  }
+
+  .machines-page .machine-name {
+    font-size: 15px;
+  }
+
+  .machines-page .machine-location {
+    font-size: 13px;
+  }
+
+  /* Real chevron affordance + accordion, only below this breakpoint. */
+  .machines-page .machine-row-chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-left: auto;
+    padding: 6px;
+    background: none;
+    border: none;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .machines-page .machine-row-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.25s ease;
+  }
+
+  .machines-page .machine-row-collapse--open {
+    grid-template-rows: 1fr;
+  }
+
+  .machines-page .machine-row-collapse__inner {
+    display: block;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* The elapsed-date text normally never wraps (`.machine-date` is
+     `white-space: nowrap` for its default single-line table-cell use), but
+     here it shares a shrink-to-fit flex item with the Cleaning badge above
+     it, so let it wrap instead of forcing the card wider than its siblings
+     when the accordion opens. */
+  .machines-page .machine-table td[data-label="Cleaning"] .machine-date {
+    white-space: normal;
+    margin-top: 4px;
+    max-width: 46vw;
+  }
+
+  .machines-page .table-actions {
+    gap: 8px;
+    padding-top: 12px;
+  }
+
+  .machines-page .btn-mark-working {
+    width: 100%;
+    text-align: center;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  .machines-page .status-badge {
+    font-size: 11px;
+  }
+
+  .machines-page .employee-form__input,
+  .machines-page .employee-form__select {
+    padding: 12px 14px;
+    font-size: 15px;
+    /* Without an explicit width, Safari/WebKit doesn't reliably stretch
+       native form controls to fill their flex/grid cell the way Chromium
+       does — verified by rendering this exact markup in both engines at
+       this breakpoint's single-column width: the input rendered ~50px
+       wider than its own field, overflowing past .employee-form's right
+       edge and getting silently cut off by its `overflow: hidden` (used
+       to clip the card's rounded corners). Most visible on the Photo
+       file input, where a selected filename got clipped mid-character.
+       Forcing the width closes that gap without changing anything else. */
+    width: 100%;
+  }
+
+  .machines-page .btn-add-employee {
+    width: 100%;
+    text-align: center;
+    padding: 12px 18px;
+    font-size: 14px;
+  }
+}
+
+/* ─── Employees: dedicated mobile card treatment ───
+   Same elevated-card pattern as Inventory/Machines, but Employees'
+   first two columns (Photo, Employee name+email) are combined into a
+   single contact-card header row via flexbox instead of stacking
+   fully vertically — the remaining columns (Role, Job Title, Phone,
+   Hire Date) keep the generic data-label stacking beneath it. Scoped
+   to .employees-page, set on Employees.tsx's root, so no other page
+   is affected. Only below 767px; desktop table is untouched. */
+@media (max-width: 767px) {
+  .employees-page .machine-section {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    overflow: visible;
+    margin-bottom: 24px;
+  }
+
+  .employees-page .machine-section__header {
+    padding: 0 4px 12px;
+    border-bottom: none;
+  }
+
+  .employees-page .employee-form {
+    margin-bottom: 24px;
+  }
+
+  .employees-page .machine-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .employees-page .machine-table tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 16px 18px 18px;
+  }
+
+  .employees-page .machine-table tbody tr:last-child {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .employees-page .machine-table td {
+    display: block;
+    width: auto;
+  }
+
+  /* Photo cell: sits beside the name/email cell to form one contact
+     header row instead of its own labeled block. */
+  .employees-page .machine-table td:first-child {
+    flex: 0 0 auto;
+  }
+
+  .employees-page .machine-table td[data-label="Photo"]::before {
+    display: none;
+  }
+
+  /* Name/email cell: shares the header row with the photo. */
+  .employees-page .machine-table td:nth-child(2) {
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+
+  /* Role, Job Title, Phone, Hire Date: each drops to its own full-width
+     line beneath the contact header, keeping the existing data-label
+     captions. */
+  .employees-page .machine-table td:nth-child(3),
+  .employees-page .machine-table td:nth-child(4),
+  .employees-page .machine-table td:nth-child(5),
+  .employees-page .machine-table td:nth-child(6) {
+    flex: 1 0 100%;
+  }
+
+  .employees-page .machine-table td:last-child {
+    padding-top: 0;
+  }
+
+  .employees-page .employee-avatar {
+    width: 48px;
+    height: 48px;
+  }
+
+  .employees-page .machine-name {
+    font-size: 15px;
+  }
+
+  .employees-page .machine-location {
+    font-size: 13px;
+  }
+
+  .employees-page .role-badge,
+  .employees-page .status-badge {
+    font-size: 11px;
+  }
+
+  .employees-page .employee-form__input,
+  .employees-page .employee-form__select {
+    padding: 12px 14px;
+    font-size: 15px;
+  }
+
+  .employees-page .btn-add-employee {
+    width: 100%;
+    text-align: center;
+    padding: 12px 18px;
+    font-size: 14px;
   }
 }

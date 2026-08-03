@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import CleaningTaskBadge from '../components/dashboard/CleaningTaskBadge';
 import {
   getCleaningHistory,
   getMalfunctionHistory,
   getOrangeInventory,
   getSparePartTransactions,
   getTasks,
+  REPORT_STATUS_LABEL,
   type CleaningHistoryRecord,
   type MalfunctionHistoryRecord,
   type InventoryTransactionRecord,
@@ -184,7 +186,7 @@ export default function Reports() {
                       <td>{r.reportedByName}</td>
                       <td>{r.description}</td>
                       <td>{r.severity}</td>
-                      <td>{r.status}</td>
+                      <td>{REPORT_STATUS_LABEL[r.status]}</td>
                       <td>{new Date(r.reportedAt).toLocaleString()}</td>
                     </tr>
                   ))}
@@ -279,6 +281,7 @@ export default function Reports() {
                 <thead>
                   <tr>
                     <th>Title</th>
+                    <th>Type</th>
                     <th>Assigned To</th>
                     <th>Machine</th>
                     <th>Due</th>
@@ -289,6 +292,7 @@ export default function Reports() {
                   {tasks.map(t => (
                     <tr key={t.id}>
                       <td>{t.title}</td>
+                      <td>{t.taskType === 'cleaning' ? <CleaningTaskBadge /> : 'General'}</td>
                       <td>{t.assignedToName}</td>
                       <td>{t.machineName ?? '—'}</td>
                       <td>{t.dueDate ?? '—'}</td>

@@ -17,7 +17,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
 
 export default function TopBar({
   title,
-  userName: _userName,
+  userName,
   userRole,
   onMenuClick,
   onLogout,
@@ -40,6 +40,7 @@ export default function TopBar({
       </div>
 
       <div className="topbar__right">
+        {userName && <span className="topbar__user-name">{userName}</span>}
         <div className="topbar__role-badge">
           <span className="topbar__role-dot" />
           {ROLE_LABEL[userRole]}

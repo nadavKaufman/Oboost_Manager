@@ -9,6 +9,15 @@ export type CleaningStatus = 'clean' | 'needs_cleaning' | 'overdue';
 export type ReportSeverity = 'low' | 'medium' | 'high' | 'critical';
 export type ReportStatus   = 'open' | 'in_progress' | 'resolved' | 'closed';
 
+// Shared display label for ReportStatus — keeps "in_progress" etc. from ever
+// leaking onto screen as a raw enum value, wherever malfunction status is shown.
+export const REPORT_STATUS_LABEL: Record<ReportStatus, string> = {
+  open: 'Open',
+  in_progress: 'In Progress',
+  resolved: 'Resolved',
+  closed: 'Closed',
+};
+
 // ---------------------------------------------------------------------------
 // Database shape — used by createClient<Database> for end-to-end type safety
 // ---------------------------------------------------------------------------
@@ -46,6 +55,7 @@ export type Database = {
           phone_number: string;
           hire_date:    string | null;
           job_title:    string;
+          show_in_directory: boolean;
           created_at:   string;
           updated_at:   string;
         };
@@ -57,6 +67,7 @@ export type Database = {
           phone_number?: string;
           hire_date?:   string | null;
           job_title?:   string;
+          show_in_directory?: boolean;
         };
         Update: {
           first_name?:  string;
@@ -73,8 +84,6 @@ export type Database = {
           id:                   string;
           name:                 string;
           location:             string;
-          address:              string;
-          model:                string;
           image_url:            string | null;
           fault_status:         FaultStatus;
           maintenance_notes:    string;
@@ -89,8 +98,6 @@ export type Database = {
           id?:                   string;
           name:                  string;
           location?:             string;
-          address?:              string;
-          model?:                string;
           image_url?:            string | null;
           fault_status?:         FaultStatus;
           maintenance_notes?:    string;
@@ -102,8 +109,6 @@ export type Database = {
         Update: {
           name?:                 string;
           location?:             string;
-          address?:              string;
-          model?:                string;
           image_url?:            string | null;
           fault_status?:         FaultStatus;
           maintenance_notes?:    string;
@@ -300,7 +305,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 // ---------------------------------------------------------------------------
 // Data helpers
 // ---------------------------------------------------------------------------
-import type { Machine } from '../types/machine';
+import { getMachineStatus, type Machine } from '../types/machine';
 
 export interface EmployeeRecord {
   employee_id:  string;
@@ -320,11 +325,25 @@ export interface GetEmployeesResult {
   error: string | null;
 }
 
-export async function getEmployees(): Promise<GetEmployeesResult> {
-  const result = await supabase
+export interface GetEmployeesOptions {
+  // When true, restricts results to employees.show_in_directory = true —
+  // used by the Employees directory page. Other callers (task-assignment
+  // pickers, dashboard counts) omit this and see every employee, since a
+  // hidden-from-directory account still behaves like a normal employee
+  // everywhere else.
+  directoryOnly?: boolean;
+}
+
+export async function getEmployees(options: GetEmployeesOptions = {}): Promise<GetEmployeesResult> {
+  const base = supabase
     .from('employees')
-    .select('employee_id, first_name, last_name, email, phone_number, hire_date, job_title, created_at, profiles (role, avatar_url)')
-    .order('first_name');
+    .select('employee_id, first_name, last_name, email, phone_number, hire_date, job_title, created_at, profiles (role, avatar_url)');
+
+  const result = await (
+    options.directoryOnly
+      ? base.eq('show_in_directory', true).order('first_name')
+      : base.order('first_name')
+  );
 
   type EmpRow = {
     employee_id:  string;
@@ -417,10 +436,12 @@ export interface GetMachinesResult {
 }
 
 export async function getMachines(): Promise<GetMachinesResult> {
+  // No client-side is_active filter: RLS is the single source of truth
+  // here — managers see every machine (active and inactive), employees
+  // see only active ones, both from this same unfiltered query.
   const result = await supabase
     .from('machines')
     .select('*')
-    .eq('is_active', true)
     .order('name');
 
   // Cast needed: custom Database type omits auxiliary Supabase fields
@@ -451,26 +472,29 @@ export async function getMachines(): Promise<GetMachinesResult> {
     assignedByMachine.set(row.machine_id, list);
   });
 
-  return {
-    machines: data.map(row => ({
-      id: row.id,
-      name: row.name,
-      location: row.location,
-      address: row.address,
-      model: row.model,
-      imageUrl: row.image_url,
-      isActive: row.is_active,
-      lastCleaned: row.last_cleaned_at ? row.last_cleaned_at.split('T')[0] : null,
-      cleaningIntervalDays: 21,
-      nextCleaningDueAt: row.next_cleaning_due_at ?? '2000-01-01',
-      assignedEmployeeIds: assignedByMachine.get(row.id) ?? [],
-      faultStatus: row.fault_status,
-      maintenanceNotes: row.maintenance_notes,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    })),
-    error: null,
-  };
+  const machines: Machine[] = data.map(row => ({
+    id: row.id,
+    name: row.name,
+    location: row.location,
+    imageUrl: row.image_url,
+    isActive: row.is_active,
+    lastCleaned: row.last_cleaned_at ? row.last_cleaned_at.split('T')[0] : null,
+    cleaningIntervalDays: 21,
+    nextCleaningDueAt: row.next_cleaning_due_at ?? '2000-01-01',
+    assignedEmployeeIds: assignedByMachine.get(row.id) ?? [],
+    faultStatus: row.fault_status,
+    maintenanceNotes: row.maintenance_notes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+
+  // Cleaning-priority order everywhere this list is shown: overdue first,
+  // then due-soon, then clean. Stable sort keeps the existing name order
+  // (set by the query above) within each group.
+  const CLEANING_PRIORITY: Record<string, number> = { overdue: 0, due_soon: 1, clean: 2 };
+  machines.sort((a, b) => CLEANING_PRIORITY[getMachineStatus(a).status] - CLEANING_PRIORITY[getMachineStatus(b).status]);
+
+  return { machines, error: null };
 }
 
 export async function markMachineWorking(machineId: string): Promise<{ error: string | null }> {
@@ -519,7 +543,6 @@ export interface MaintenanceReportRecord {
 
 export interface MachineDetails {
   machine: Machine;
-  assignedEmployees: { id: string; name: string }[];
   cleaningHistory: { id: string; cleanedAt: string; cleanedByName: string }[];
   malfunctionHistory: MaintenanceReportRecord[];
 }
@@ -552,7 +575,6 @@ export async function getMachineDetails(
   const reportRows = (reportsRes.data as ReportRow[] | null) ?? [];
 
   const userIds = new Set<string>();
-  assignRows.forEach(r => userIds.add(r.user_id));
   cleaningRows.forEach(r => userIds.add(r.cleaned_by));
   reportRows.forEach(r => {
     userIds.add(r.reported_by);
@@ -576,8 +598,6 @@ export async function getMachineDetails(
     id: machineRow.id,
     name: machineRow.name,
     location: machineRow.location,
-    address: machineRow.address,
-    model: machineRow.model,
     imageUrl: machineRow.image_url,
     isActive: machineRow.is_active,
     lastCleaned: machineRow.last_cleaned_at ? machineRow.last_cleaned_at.split('T')[0] : null,
@@ -593,7 +613,6 @@ export async function getMachineDetails(
   return {
     details: {
       machine,
-      assignedEmployees: assignRows.map(r => ({ id: r.user_id, name: nameFor(r.user_id) })),
       cleaningHistory: cleaningRows.map(r => ({
         id: r.id,
         cleanedAt: r.cleaned_at,
@@ -619,9 +638,7 @@ export async function getMachineDetails(
 
 export interface UpdateMachineFields {
   name?: string;
-  address?: string;
   location?: string;
-  model?: string;
   maintenanceNotes?: string;
   isActive?: boolean;
 }
@@ -632,9 +649,7 @@ export async function updateMachine(
 ): Promise<{ error: string | null }> {
   const payload: Database['public']['Tables']['machines']['Update'] = {};
   if (fields.name !== undefined) payload.name = fields.name;
-  if (fields.address !== undefined) payload.address = fields.address;
   if (fields.location !== undefined) payload.location = fields.location;
-  if (fields.model !== undefined) payload.model = fields.model;
   if (fields.maintenanceNotes !== undefined) payload.maintenance_notes = fields.maintenanceNotes;
   if (fields.isActive !== undefined) payload.is_active = fields.isActive;
 
@@ -648,9 +663,7 @@ export async function updateMachine(
 
 export interface CreateMachineInput {
   name: string;
-  address: string;
   location: string;
-  model: string;
   maintenanceNotes: string;
   isActive: boolean;
 }
@@ -660,9 +673,7 @@ export async function createMachine(input: CreateMachineInput): Promise<{ id: st
     .from('machines')
     .insert({
       name: input.name,
-      address: input.address,
       location: input.location,
-      model: input.model,
       maintenance_notes: input.maintenanceNotes,
       is_active: input.isActive,
     })
@@ -670,8 +681,20 @@ export async function createMachine(input: CreateMachineInput): Promise<{ id: st
     .single();
 
   if (error || !data) {
-    if (import.meta.env.DEV && error) console.error('[oboost] createMachine error:', error.message);
-    return { id: null, error: 'Could not create the machine. Please try again.' };
+    if (import.meta.env.DEV && error) {
+      // TEMPORARY diagnostic logging — remove once the root cause of the
+      // createMachine() failure is confirmed and fixed.
+      console.error('[oboost] createMachine error (full):', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      });
+    }
+    const devDetail = error
+      ? `message="${error.message}" details="${error.details}" hint="${error.hint}" code="${error.code}"`
+      : 'insert succeeded but no row was returned';
+    return { id: null, error: withDevDetail('Could not create the machine. Please try again.', devDetail) };
   }
   return { id: (data as { id: string }).id, error: null };
 }
@@ -832,8 +855,24 @@ export async function reportMachineMalfunction(input: ReportMalfunctionInput): P
   } as never);
 
   if (error) {
-    if (import.meta.env.DEV) console.error('[oboost] reportMachineMalfunction error:', error.message);
-    return { error: 'Could not report the malfunction. Please try again.' };
+    if (import.meta.env.DEV) {
+      // TEMPORARY diagnostic logging — remove once the root cause of the
+      // reportMachineMalfunction() failure is confirmed and fixed.
+      console.error('[oboost] reportMachineMalfunction error (full):', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      });
+    }
+    if (
+      error.message.includes('Not authenticated')
+      || error.message.includes('Not authorized')
+      || error.message.includes('Machine does not exist')
+    ) {
+      return { error: error.message };
+    }
+    return { error: withDevDetail('Could not report the malfunction. Please try again.', error.message) };
   }
   return { error: null };
 }
@@ -1174,6 +1213,7 @@ export async function recordSparePartAdjustment(itemId: string, quantity: number
 // ---------------------------------------------------------------------------
 
 export type TaskStatus = 'pending' | 'completed';
+export type TaskType = 'general' | 'cleaning';
 
 export interface TaskRecord {
   id: string;
@@ -1186,6 +1226,7 @@ export interface TaskRecord {
   machineName: string | null;
   dueDate: string | null;
   status: TaskStatus;
+  taskType: TaskType;
   completionNotes: string | null;
   completionPhotoUrl: string | null;
   createdAt: string;
@@ -1195,7 +1236,7 @@ export interface TaskRecord {
 export async function getTasks(limit?: number): Promise<{ tasks: TaskRecord[]; error: string | null }> {
   let tasksQuery = supabase
     .from('tasks')
-    .select('id, title, description, assigned_to, assigned_by, machine_id, due_date, status, completion_notes, completion_photo_url, created_at, completed_at')
+    .select('id, title, description, assigned_to, assigned_by, machine_id, due_date, status, task_type, completion_notes, completion_photo_url, created_at, completed_at')
     .order('created_at', { ascending: false });
   if (limit !== undefined) tasksQuery = tasksQuery.limit(limit);
   const tasksRes = await tasksQuery;
@@ -1209,6 +1250,7 @@ export async function getTasks(limit?: number): Promise<{ tasks: TaskRecord[]; e
     machine_id: string | null;
     due_date: string | null;
     status: TaskStatus;
+    task_type: TaskType;
     completion_notes: string | null;
     completion_photo_url: string | null;
     created_at: string;
@@ -1252,6 +1294,7 @@ export async function getTasks(limit?: number): Promise<{ tasks: TaskRecord[]; e
       machineName: r.machine_id ? machineNameById.get(r.machine_id) ?? '—' : null,
       dueDate: r.due_date,
       status: r.status,
+      taskType: r.task_type,
       completionNotes: r.completion_notes,
       completionPhotoUrl: r.completion_photo_url,
       createdAt: r.created_at,
@@ -1267,6 +1310,7 @@ export interface CreateTaskInput {
   assignedTo: string;
   machineId: string | null;
   dueDate: string | null;
+  taskType: TaskType;
 }
 
 export async function createTask(input: CreateTaskInput): Promise<{ error: string | null }> {
@@ -1276,6 +1320,7 @@ export async function createTask(input: CreateTaskInput): Promise<{ error: strin
     p_description: input.description,
     p_machine_id: input.machineId,
     p_due_date: input.dueDate,
+    p_task_type: input.taskType,
   } as never);
 
   if (error) {
@@ -1284,6 +1329,7 @@ export async function createTask(input: CreateTaskInput): Promise<{ error: strin
       error.message.includes('Not authorized')
       || error.message.includes('Task title is required')
       || error.message.includes('Assigned employee not found')
+      || error.message.includes('cleaning task must be linked')
     ) {
       return { error: error.message };
     }

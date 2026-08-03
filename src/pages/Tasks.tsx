@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import CleaningTaskBadge from '../components/dashboard/CleaningTaskBadge';
 import {
   getTasks,
   createTask,
@@ -7,6 +8,7 @@ import {
   getMachines,
   type TaskRecord,
   type EmployeeRecord,
+  type TaskType,
 } from '../lib/supabase';
 import { type Machine } from '../types/machine';
 import '../styles/layout.css';
@@ -16,7 +18,14 @@ const FALLBACK_USER = { name: '', role: 'employee' as const };
 
 type LoadStatus = 'loading' | 'error' | 'ready';
 
-const EMPTY_FORM = { title: '', description: '', assignedTo: '', machineId: '', dueDate: '' };
+const EMPTY_FORM = {
+  title: '',
+  description: '',
+  assignedTo: '',
+  machineId: '',
+  dueDate: '',
+  taskType: 'general' as TaskType,
+};
 
 export default function Tasks() {
   const [status, setStatus] = useState<LoadStatus>('loading');
@@ -47,7 +56,13 @@ export default function Tasks() {
       if (error) setActionError(error);
       else setEmployees(employees);
     });
-    getMachines().then(({ machines: rows }) => setMachines(rows));
+    getMachines().then(({ machines: rows, error }) => {
+      if (error) setActionError(error);
+      // Inactive machines must never be selectable here, especially for
+      // cleaning tasks — assigning work to a decommissioned machine doesn't
+      // make sense. The main Machines list is unaffected by this filter.
+      else setMachines(rows.filter(m => m.isActive));
+    });
   }, [load]);
 
   async function handleCreate(e: FormEvent) {
@@ -58,6 +73,10 @@ export default function Tasks() {
       setActionError('Title and assigned employee are required.');
       return;
     }
+    if (form.taskType === 'cleaning' && !form.machineId) {
+      setActionError('A cleaning task must have a machine selected.');
+      return;
+    }
     setSubmitting(true);
     const { error } = await createTask({
       title: form.title,
@@ -65,6 +84,7 @@ export default function Tasks() {
       assignedTo: form.assignedTo,
       machineId: form.machineId || null,
       dueDate: form.dueDate || null,
+      taskType: form.taskType,
     });
     setSubmitting(false);
     if (error) {
@@ -135,14 +155,29 @@ export default function Tasks() {
               </select>
             </div>
             <div className="employee-form__field">
-              <label className="employee-form__label" htmlFor="task-machine">Machine (optional)</label>
+              <label className="employee-form__label" htmlFor="task-type">Task Type</label>
+              <select
+                id="task-type"
+                className="employee-form__select"
+                value={form.taskType}
+                onChange={e => setForm(prev => ({ ...prev, taskType: e.target.value as TaskType }))}
+              >
+                <option value="general">General</option>
+                <option value="cleaning">Cleaning</option>
+              </select>
+            </div>
+            <div className="employee-form__field">
+              <label className="employee-form__label" htmlFor="task-machine">
+                Machine{form.taskType === 'cleaning' ? '' : ' (optional)'}
+              </label>
               <select
                 id="task-machine"
                 className="employee-form__select"
                 value={form.machineId}
                 onChange={e => setForm(prev => ({ ...prev, machineId: e.target.value }))}
+                required={form.taskType === 'cleaning'}
               >
-                <option value="">No machine</option>
+                <option value="">{form.taskType === 'cleaning' ? 'Select a machine…' : 'No machine'}</option>
                 {machines.map(m => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
@@ -173,7 +208,7 @@ export default function Tasks() {
             <span className="machine-section__count">{visibleTasks.length} tasks</span>
           </div>
 
-          <div className="employee-form__field" style={{ padding: '16px 24px 0' }}>
+          <div className="employee-form__field" style={{ padding: '16px 24px 20px' }}>
             <label className="employee-form__label" htmlFor="task-filter">Filter by Employee</label>
             <select
               id="task-filter"
@@ -210,6 +245,7 @@ export default function Tasks() {
                   <tr key={task.id}>
                     <td>
                       <div className="machine-name">{task.title}</div>
+                      {task.taskType === 'cleaning' && <CleaningTaskBadge />}
                       {task.description && <div className="machine-location">{task.description}</div>}
                     </td>
                     <td>{task.assignedToName}</td>

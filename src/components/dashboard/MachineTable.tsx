@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { type Machine, getMachineStatus, type Employee, type UserRole } from '../../types/machine';
+import { type Machine, getMachineStatus, getCleaningElapsedText, type UserRole } from '../../types/machine';
+import MachineIcon from './MachineIcon';
 
 interface Props {
   machines: Machine[];
-  employees: Employee[];
   onMarkCleaned: (id: string) => void;
   currentUserRole?: UserRole;
   savingWorkingIds: Set<string>;
@@ -13,8 +14,8 @@ interface Props {
 
 const STATUS_LABEL: Record<string, string> = {
   clean: 'Clean',
-  due_soon: 'Cleaning Due Soon',
-  overdue: 'Cleaning Overdue',
+  due_soon: 'Clean Due',
+  overdue: 'Overdue',
 };
 
 const FAULT_LABEL: Record<string, string> = {
@@ -31,7 +32,6 @@ const FAULT_STATUS_CLASS: Record<string, string> = {
 
 export default function MachineTable({
   machines,
-  employees,
   onMarkCleaned,
   currentUserRole,
   savingWorkingIds,
@@ -40,10 +40,16 @@ export default function MachineTable({
 }: Props) {
   const canMarkWorking = currentUserRole === 'manager';
 
-  function getAssignedNames(ids: string[]): string {
-    if (ids.length === 0) return '—';
-    const names = ids.map(id => employees.find(e => e.id === id)?.name ?? '—');
-    return names.join(', ');
+  // Mobile-only accordion: which single row (if any) has its elapsed-time
+  // text + actions revealed. Desktop ignores this entirely (see the
+  // `.machine-row-collapse` CSS in dashboard.css, which is `display: contents`
+  // outside the mobile breakpoint — same no-op trick CollapsibleSection uses
+  // for its `mobileOnly` prop), so this state has zero visual effect above
+  // 767px no matter what it's set to.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  function toggleExpanded(id: string) {
+    setExpandedId(prev => (prev === id ? null : id));
   }
 
   return (
@@ -57,9 +63,7 @@ export default function MachineTable({
         <thead>
           <tr>
             <th>Machine</th>
-            <th>Assigned Employee</th>
-            <th>Last Cleaned</th>
-            <th>Next Due</th>
+            <th>Status</th>
             <th>Cleaning</th>
             <th>Malfunction</th>
             <th>Actions</th>
@@ -67,67 +71,90 @@ export default function MachineTable({
         </thead>
         <tbody>
           {machines.map(machine => {
-            const { status, daysSinceCleaned, daysUntilDue } = getMachineStatus(machine);
-
-            const dueText =
-              daysUntilDue < 0
-                ? `${Math.abs(daysUntilDue)}d overdue`
-                : daysUntilDue === 0
-                ? 'Due today'
-                : `In ${daysUntilDue}d`;
+            const { status, daysSinceCleaned } = getMachineStatus(machine);
+            const isExpanded = expandedId === machine.id;
+            const collapseClass = `machine-row-collapse${isExpanded ? ' machine-row-collapse--open' : ''}`;
 
             return (
-              <tr key={machine.id}>
-                <td>
-                  <div className="machine-name">
-                    <Link to={`/machines/${machine.id}`}>{machine.name}</Link>
+              <tr key={machine.id} className={isExpanded ? 'machine-row--expanded' : undefined}>
+                <td onClick={() => toggleExpanded(machine.id)}>
+                  <div className="machine-cell">
+                    <Link to={`/machines/${machine.id}`} className="machine-thumb" aria-hidden="true" tabIndex={-1}>
+                      {machine.imageUrl ? (
+                        <img src={machine.imageUrl} alt="" />
+                      ) : (
+                        <MachineIcon className="machine-thumb__icon" />
+                      )}
+                    </Link>
+                    <div>
+                      <div className="machine-name">
+                        <Link to={`/machines/${machine.id}`}>{machine.name}</Link>
+                      </div>
+                      <div className="machine-location">{machine.location}</div>
+                    </div>
+                    <button
+                      type="button"
+                      className={`machine-row-chevron collapsible-chevron${isExpanded ? ' collapsible-chevron--open' : ''}`}
+                      aria-expanded={isExpanded}
+                      aria-label={isExpanded ? 'Collapse machine details' : 'Expand machine details'}
+                      onClick={e => {
+                        e.stopPropagation();
+                        toggleExpanded(machine.id);
+                      }}
+                    >
+                      ▾
+                    </button>
                   </div>
-                  <div className="machine-location">{machine.location}</div>
                 </td>
-                <td data-label="Assigned Employee">
-                  <span className="machine-model">{getAssignedNames(machine.assignedEmployeeIds)}</span>
-                </td>
-                <td data-label="Last Cleaned">
-                  <span className="machine-date">
-                    {daysSinceCleaned === null ? 'Never cleaned' : `${daysSinceCleaned}d ago`}
+                <td data-label="Status" onClick={() => toggleExpanded(machine.id)}>
+                  <span className={`status-badge status-badge--${machine.isActive ? 'clean' : 'overdue'}`}>
+                    <span className="status-badge__dot" />
+                    {machine.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </td>
-                <td data-label="Next Due">
-                  <span className={`machine-due machine-due--${status}`}>{dueText}</span>
-                </td>
-                <td data-label="Cleaning">
-                  <span className={`status-badge status-badge--${status}`}>
-                    <span className="status-badge__dot" />
+                <td data-label="Cleaning" onClick={() => toggleExpanded(machine.id)}>
+                  <span
+                    className={`status-badge status-badge--${status}${status === 'overdue' ? ' status-badge--cleaning-overdue' : ''}`}
+                  >
                     {STATUS_LABEL[status]}
                   </span>
+                  <div className={collapseClass}>
+                    <div className="machine-row-collapse__inner">
+                      <div className="machine-date">{getCleaningElapsedText(daysSinceCleaned)}</div>
+                    </div>
+                  </div>
                 </td>
-                <td data-label="Malfunction">
+                <td data-label="Malfunction" onClick={() => toggleExpanded(machine.id)}>
                   <span className={`status-badge ${FAULT_STATUS_CLASS[machine.faultStatus]}`}>
                     <span className="status-badge__dot" />
                     {FAULT_LABEL[machine.faultStatus]}
                   </span>
                 </td>
                 <td data-label="Actions">
-                  <div className="table-actions">
-                    <button
-                      className="btn-mark-clean"
-                      disabled={savingCleanIds.has(machine.id)}
-                      onClick={() => onMarkCleaned(machine.id)}
-                    >
-                      {savingCleanIds.has(machine.id) ? 'Saving…' : 'Mark Cleaned'}
-                    </button>
-                    <Link className="btn-report-issue" to={`/machines/${machine.id}`}>
-                      Report Malfunction
-                    </Link>
-                    {canMarkWorking && machine.faultStatus === 'fault' && (
-                      <button
-                        className="btn-mark-working"
-                        disabled={savingWorkingIds.has(machine.id)}
-                        onClick={() => onMarkWorking(machine.id)}
-                      >
-                        {savingWorkingIds.has(machine.id) ? 'Saving…' : 'Mark as Working'}
-                      </button>
-                    )}
+                  <div className={collapseClass}>
+                    <div className="machine-row-collapse__inner">
+                      <div className="table-actions">
+                        <button
+                          className="btn-mark-clean"
+                          disabled={savingCleanIds.has(machine.id)}
+                          onClick={() => onMarkCleaned(machine.id)}
+                        >
+                          {savingCleanIds.has(machine.id) ? 'Saving…' : 'Mark Cleaned'}
+                        </button>
+                        <Link className="btn-report-issue" to={`/machines/${machine.id}/report-malfunction`}>
+                          Report Malfunction
+                        </Link>
+                        {canMarkWorking && machine.faultStatus === 'fault' && (
+                          <button
+                            className="btn-mark-working"
+                            disabled={savingWorkingIds.has(machine.id)}
+                            onClick={() => onMarkWorking(machine.id)}
+                          >
+                            {savingWorkingIds.has(machine.id) ? 'Saving…' : 'Mark as Working'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </td>
               </tr>

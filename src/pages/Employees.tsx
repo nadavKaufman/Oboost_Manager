@@ -42,7 +42,7 @@ export default function Employees() {
 
   const load = () => {
     setStatus('loading');
-    getEmployees().then(({ employees: rows, error: fetchError }) => {
+    getEmployees({ directoryOnly: true }).then(({ employees: rows, error: fetchError }) => {
       if (fetchError) {
         setStatus('error');
       } else {
@@ -55,7 +55,7 @@ export default function Employees() {
   useEffect(load, []);
 
   function refresh() {
-    getEmployees().then(({ employees: rows, error: fetchError }) => {
+    getEmployees({ directoryOnly: true }).then(({ employees: rows, error: fetchError }) => {
       if (!fetchError) setEmployees(rows);
     });
   }
@@ -105,7 +105,7 @@ export default function Employees() {
 
   return (
     <DashboardLayout title="Employees" currentUser={FALLBACK_USER}>
-      <div className="dashboard-page">
+      <div className="dashboard-page employees-page">
         <div className="page-header">
           <h2 className="page-header__title">Employees</h2>
           <p className="page-header__subtitle">

@@ -20,8 +20,6 @@ export interface Machine {
   id: string;
   name: string;
   location: string;
-  address: string;
-  model: string;
   imageUrl: string | null;
   isActive: boolean;
   lastCleaned: string | null;
@@ -39,21 +37,21 @@ export type CleaningStatus = 'clean' | 'due_soon' | 'overdue';
 export interface MachineStatus {
   status: CleaningStatus;
   daysSinceCleaned: number | null;
-  daysUntilDue: number;
 }
 
 // Status is derived from full days since last_cleaned_at, not from the
 // stored cleaning_status column, so a legacy DB value never surfaces
 // in the UI and a null last_cleaned_at safely reads as overdue.
+//
+// There is deliberately no "days until due" / deadline concept exposed
+// anywhere here — the product decision is to show only the current
+// status plus how long ago the machine was cleaned, never a countdown.
 export function getMachineStatus(machine: Machine): MachineStatus {
-  const now = new Date();
-  const due = new Date(machine.nextCleaningDueAt);
-  const daysUntilDue = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
   if (!machine.lastCleaned) {
-    return { status: 'overdue', daysSinceCleaned: null, daysUntilDue };
+    return { status: 'overdue', daysSinceCleaned: null };
   }
 
+  const now = new Date();
   const last = new Date(machine.lastCleaned);
   const daysSinceCleaned = Math.floor((now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -62,5 +60,14 @@ export function getMachineStatus(machine: Machine): MachineStatus {
   else if (daysSinceCleaned >= 7) status = 'due_soon';
   else status = 'clean';
 
-  return { status, daysSinceCleaned, daysUntilDue };
+  return { status, daysSinceCleaned };
+}
+
+// Shared "small secondary text" for how long ago a machine was cleaned —
+// used everywhere cleaning status is shown so the wording stays identical.
+export function getCleaningElapsedText(daysSinceCleaned: number | null): string {
+  if (daysSinceCleaned === null) return 'Never cleaned';
+  if (daysSinceCleaned === 0) return 'Today';
+  if (daysSinceCleaned === 1) return '1 day passed';
+  return `${daysSinceCleaned} days passed`;
 }

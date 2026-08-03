@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import StatCard from '../components/dashboard/StatCard';
+import CollapsibleSection from '../components/dashboard/CollapsibleSection';
 import { useAuth } from '../context/AuthContext';
 import {
   getOrangeInventory,
@@ -279,7 +280,7 @@ export default function Inventory() {
 
   return (
     <DashboardLayout title="Inventory" currentUser={FALLBACK_USER}>
-      <div className="dashboard-page">
+      <div className="dashboard-page inventory-page">
         <div className="page-header">
           <h2 className="page-header__title">Inventory</h2>
           <p className="page-header__subtitle">Orange carton stock, spare parts, and movement history.</p>
@@ -308,7 +309,7 @@ export default function Inventory() {
 
         {status === 'ready' && data && (
           <>
-            <div className="stat-cards">
+            <div className="stat-cards stat-cards--single">
               <StatCard
                 label="Current Stock"
                 value={data.currentStock}
@@ -425,11 +426,10 @@ export default function Inventory() {
               </div>
             )}
 
-            <div className="machine-section">
-              <div className="machine-section__header">
-                <span className="machine-section__title">{isManager ? 'All Movements' : 'Your Movements'}</span>
-                <span className="machine-section__count">{data.transactions.length} movements</span>
-              </div>
+            <CollapsibleSection
+              title={isManager ? 'All Movements' : 'Your Movements'}
+              count={`${data.transactions.length} movements`}
+            >
               {data.transactions.length === 0 ? (
                 <p className="employee-empty">No inventory movements yet.</p>
               ) : (
@@ -446,21 +446,21 @@ export default function Inventory() {
                   <tbody>
                     {data.transactions.map(txn => (
                       <tr key={txn.id}>
-                        <td>{TYPE_LABEL[txn.type]}</td>
-                        <td>
+                        <td data-label="Type">{TYPE_LABEL[txn.type]}</td>
+                        <td data-label="Quantity">
                           <span className={`machine-due machine-due--${txn.quantity < 0 ? 'overdue' : 'clean'}`}>
                             {txn.quantity > 0 ? `+${txn.quantity}` : txn.quantity}
                           </span>
                         </td>
-                        <td>{txn.recordedByName}</td>
-                        <td>{txn.notes || '—'}</td>
-                        <td>{new Date(txn.createdAt).toLocaleString()}</td>
+                        <td data-label="Recorded By">{txn.recordedByName}</td>
+                        <td data-label="Notes">{txn.notes || '—'}</td>
+                        <td data-label="Date">{new Date(txn.createdAt).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               )}
-            </div>
+            </CollapsibleSection>
           </>
         )}
 
@@ -544,18 +544,18 @@ export default function Inventory() {
                   <tbody>
                     {visibleParts.map(part => (
                       <tr key={part.id}>
-                        <td>
+                        <td data-label="Name">
                           <div className="machine-name">{part.name}</div>
                           {part.description && <div className="machine-location">{part.description}</div>}
                         </td>
-                        <td>{part.unit}</td>
-                        <td>
+                        <td data-label="Unit">{part.unit}</td>
+                        <td data-label="Stock">
                           <span className={`machine-due machine-due--${part.currentStock > 0 ? 'clean' : 'overdue'}`}>
                             {part.currentStock}
                           </span>
                         </td>
                         {isManager && (
-                          <td>
+                          <td data-label="Status">
                             <span className={`status-badge status-badge--${part.isActive ? 'clean' : 'maintenance'}`}>
                               <span className="status-badge__dot" />
                               {part.isActive ? 'Active' : 'Inactive'}
@@ -563,7 +563,7 @@ export default function Inventory() {
                           </td>
                         )}
                         {isManager && (
-                          <td>
+                          <td data-label="Actions">
                             <button className="btn-report-issue" onClick={() => handleToggleActive(part.id, part.isActive)}>
                               {part.isActive ? 'Deactivate' : 'Activate'}
                             </button>
@@ -729,11 +729,10 @@ export default function Inventory() {
               </div>
             )}
 
-            <div className="machine-section">
-              <div className="machine-section__header">
-                <span className="machine-section__title">{isManager ? 'All Part Movements' : 'Your Part Movements'}</span>
-                <span className="machine-section__count">{partTxns.length} movements</span>
-              </div>
+            <CollapsibleSection
+              title={isManager ? 'All Part Movements' : 'Your Part Movements'}
+              count={`${partTxns.length} movements`}
+            >
               {partTxns.length === 0 ? (
                 <p className="employee-empty">No spare part movements yet.</p>
               ) : (
@@ -751,22 +750,22 @@ export default function Inventory() {
                   <tbody>
                     {partTxns.map(txn => (
                       <tr key={txn.id}>
-                        <td>{txn.itemName}</td>
-                        <td>{TYPE_LABEL[txn.type]}</td>
-                        <td>
+                        <td data-label="Part">{txn.itemName}</td>
+                        <td data-label="Type">{TYPE_LABEL[txn.type]}</td>
+                        <td data-label="Quantity">
                           <span className={`machine-due machine-due--${txn.quantity < 0 ? 'overdue' : 'clean'}`}>
                             {txn.quantity > 0 ? `+${txn.quantity}` : txn.quantity}
                           </span>
                         </td>
-                        <td>{txn.recordedByName}</td>
-                        <td>{txn.notes || '—'}</td>
-                        <td>{new Date(txn.createdAt).toLocaleString()}</td>
+                        <td data-label="Recorded By">{txn.recordedByName}</td>
+                        <td data-label="Notes">{txn.notes || '—'}</td>
+                        <td data-label="Date">{new Date(txn.createdAt).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               )}
-            </div>
+            </CollapsibleSection>
           </>
         )}
       </div>

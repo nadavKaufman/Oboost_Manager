@@ -6,6 +6,7 @@ import {
   getOrangeInventory,
   getSparePartTransactions,
   getTasks,
+  REPORT_STATUS_LABEL,
   type CleaningHistoryRecord,
   type MalfunctionHistoryRecord,
   type InventoryTransactionRecord,
@@ -130,7 +131,7 @@ export default function MyActivity() {
                         <td>{r.machineName}</td>
                         <td>{r.description}</td>
                         <td>{r.severity}</td>
-                        <td>{r.status}</td>
+                        <td>{REPORT_STATUS_LABEL[r.status]}</td>
                         <td>{new Date(r.reportedAt).toLocaleString()}</td>
                       </tr>
                     ))}

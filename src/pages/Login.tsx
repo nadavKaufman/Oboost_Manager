@@ -14,14 +14,23 @@ export default function Login() {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setSubmitting(false);
-    if (error) {
-      if (import.meta.env.DEV) console.error('[oboost] login error:', error.message);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error || !data.user) {
+      setSubmitting(false);
+      if (import.meta.env.DEV && error) console.error('[oboost] login error:', error.message);
       setError('Incorrect email or password. Please try again.');
-    } else {
-      navigate('/dashboard');
+      return;
     }
+
+    // Resolve the role directly so we land on the right home page immediately,
+    // instead of always hitting the manager-only route first and bouncing.
+    const { data: profileRow } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .single();
+    setSubmitting(false);
+    navigate(profileRow?.role === 'manager' ? '/dashboard' : '/my-machines');
   }
 
   return (

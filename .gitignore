@@ -28,3 +28,6 @@ dist-ssr
 
 # Claude Code local settings (machine-specific, never shared)
 .claude/settings.local.json
+
+# One-time local operational/data scripts — not app source, kept local only
+backend/scripts/
