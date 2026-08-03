@@ -8,6 +8,14 @@ Manager App: [https://oboost-portal.netlify.app/](https://oboost-portal.netlify.
 
 Marketing Website: Coming soon
 
+## Screenshots
+
+### Overview
+![OBoost Manager overview dashboard](docs/screenshots/overview.jpeg)
+
+### Machines
+![OBoost Manager machines page](docs/screenshots/machines.jpeg)
+
 ## Business problem
 
 OBoost operates fresh orange juice vending machines across multiple locations, with no shared system to track cleaning schedules, faults, or staff assignments. OBoost Manager replaces that ad-hoc tracking with a single, role-aware dashboard backed by a real database.
