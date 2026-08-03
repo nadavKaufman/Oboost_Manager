@@ -1,6 +1,6 @@
 # OBoost Manager
 
-An internal operations portal for managing self-service machines across multiple locations — cleaning schedules, fault tracking, staff records, and inventory in one place.
+An internal operations portal for managing fresh orange juice vending machines across multiple locations — cleaning schedules, fault tracking, staff records, and inventory in one place.
 
 ## Live Demo
 
@@ -10,14 +10,14 @@ Marketing Website: Coming soon
 
 ## Business problem
 
-OBoost operates self-service machines across multiple locations, with no shared system to track cleaning schedules, faults, or staff assignments. OBoost Manager replaces that ad-hoc tracking with a single, role-aware dashboard backed by a real database.
+OBoost operates fresh orange juice vending machines across multiple locations, with no shared system to track cleaning schedules, faults, or staff assignments. OBoost Manager replaces that ad-hoc tracking with a single, role-aware dashboard backed by a real database.
 
 ## Main features
 
-- **Machine tracking** — cleaning status (Clean / Needs Cleaning / Overdue) and fault status, computed from a fixed 21-day cycle. Marking a machine cleaned persists an atomic status update plus an audit-log row.
+- **Machine tracking** — cleaning status (Clean / Needs Cleaning / Overdue) and fault status for each fresh orange juice vending machine, computed from a fixed 21-day cycle. Marking a machine cleaned persists an atomic status update plus an audit-log row.
 - **Fault handling** — any authenticated user can report a malfunction (description, fault type, severity, optional photo); managers clear the fault once it's repaired.
 - **Task management** — managers create and assign tasks, general or cleaning, to employees. Completing a cleaning task automatically marks its linked machine as cleaned, in the same transaction.
-- **Inventory tracking** — orange cartons and spare parts as a signed-quantity transaction ledger, with a database-level guard against negative stock.
+- **Inventory tracking** — orange cartons (for the juice) and spare parts as a signed-quantity transaction ledger, with a database-level guard against negative stock.
 - **Reports** — cleaning, malfunction, inventory, and task history, queried live from Supabase.
 - **Employee management** — managers view all staff and add new employees, which creates a real Supabase Auth account.
 
