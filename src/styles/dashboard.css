@@ -1411,6 +1411,12 @@
     margin-bottom: 20px;
   }
 
+  /* Same black-on-transparent artwork as the sidebar logo — invert it in
+     dark mode so it stays visible against the dark page background. */
+  .dash-layout[data-theme="dark"] .dashboard-overview-page .page-header__logo {
+    filter: invert(1);
+  }
+
   /* Two-line hero: "Welcome back" (eyebrow) stacked above the name
      (primary heading). Desktop keeps rendering this same markup as one
      inline line — ", " (page-header__title-sep) is only hidden and the
@@ -1430,6 +1436,13 @@
     font-size: 13px;
     font-weight: 500;
     color: var(--text-muted);
+  }
+
+  /* --text-muted doesn't carry enough contrast against the dark background
+     for this greeting text; fall back to the full-contrast text color in
+     dark mode only, same size/weight as above. */
+  .dash-layout[data-theme="dark"] .dashboard-overview-page .page-header__eyebrow {
+    color: var(--text);
   }
 
   .dashboard-overview-page .page-header__name {

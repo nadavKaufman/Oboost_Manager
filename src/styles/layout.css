@@ -226,6 +226,13 @@
   width: auto;
 }
 
+/* The logo artwork is solid black on transparent — invisible against the
+   dark sidebar background. Inverting turns it white without touching the
+   light-mode asset or the mark itself. */
+.dash-layout[data-theme="dark"] .sidebar__logo img {
+  filter: invert(1);
+}
+
 .sidebar__collapse-btn {
   flex-shrink: 0;
   width: 26px;

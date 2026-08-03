@@ -52,7 +52,7 @@ export default function TopBar({
           aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
         >
-          {theme === 'dark' ? '☀' : '🌙'}
+          {theme === 'dark' ? '☀️' : '🌙'}
         </button>
         {onLogout && (
           <button className="topbar__logout" onClick={onLogout}>
