@@ -2,11 +2,9 @@
 
 An internal operations portal for managing fresh orange juice vending machines across multiple locations — cleaning schedules, fault tracking, staff records, and inventory in one place.
 
-## Live Demo
+## Live Website
 
-Manager App: [https://oboost-portal.netlify.app/](https://oboost-portal.netlify.app/)
-
-Marketing Website: Coming soon
+ [https://oboost-portal.netlify.app/](https://oboost-portal.netlify.app/)
 
 ## Screenshots
 
