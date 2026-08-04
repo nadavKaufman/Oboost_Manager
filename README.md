@@ -1,48 +1,82 @@
-# OBoost Marketing Website
+# OBoost Manager
 
 ## Live Website
 
-https://nadavkaufman.github.io/o-boost/
+https://oboost-portal.netlify.app/
 
-## Screenshot
+## Screenshots
 
-![OBoost homepage screenshot](docs/screenshots/homepage.png)
+### Overview
 
-## Business goal
+![OBoost Manager overview dashboard](docs/screenshots/overview.jpeg)
 
-OBoost operates automated fresh orange juice vending machines across malls, offices, campuses, and other high-traffic locations.
+### Machines
 
-This website serves as the company's public-facing marketing website, introducing the product, explaining how it works, and helping potential customers learn about the solution and contact the company.
+![OBoost Manager machines page](docs/screenshots/machines.jpeg)
 
-**Related project:** OBoost Manager — the company's internal operations management system.
+### Employees
 
-## Main sections
+![OBoost Manager employees page](docs/screenshots/employees.jpeg)
 
-- Hero section
-- Product overview
-- "How it works" section
-- Locations section
-- FAQ section
-- Contact section
+## Business problem
+
+OBoost operates fresh orange juice vending machines across multiple locations, with no centralized system to manage daily operations.
+
+OBoost Manager replaces fragmented manual workflows with a single role-based platform for managing machines, employees, cleaning schedules, inventory, tasks, and fault reporting.
+
+**Related project:** OBoost Marketing Website — the company's public-facing marketing website.
+
+## Main features
+
+- Machine tracking with cleaning status and fault monitoring
+- Fault reporting with repair workflow
+- Employee and task management
+- Inventory tracking for orange cartons and spare parts
+- Cleaning, inventory, malfunction, and task reports
+- Authentication and role-based access control
+
+## Role model and access control
+
+The application supports two roles:
+
+- Employee
+- Manager
+
+Managers have full operational access, while employees have access only to the functionality required for their daily work.
+
+Authorization is enforced in PostgreSQL using Supabase Row Level Security (RLS), making the database the source of truth rather than the frontend.
 
 ## Technology stack
 
-- HTML5
-- CSS3
-- Vanilla JavaScript
+- React 19
+- TypeScript
+- Vite
+- React Router v7
+- Supabase (PostgreSQL, Auth, Row Level Security, pg_cron)
+- Plain CSS
 
 ## Architecture
 
-A responsive single-page website built with semantic HTML, modular CSS, and vanilla JavaScript without external frameworks.
+A React single-page application with page-based routing and typed Supabase integration.
 
-## What I worked on
+All database communication is centralized through a single typed Supabase client. Database schema, security policies, RPCs, and scheduled jobs are maintained as SQL migrations inside the project.
 
-- Designed and developed the entire website from scratch.
-- Built the layout and styling using HTML and CSS.
-- Implemented responsive behavior across desktop and mobile devices.
-- Added interactive UI elements with JavaScript.
-- Improved spacing, visual hierarchy, and overall user experience.
+## Local setup
 
-## Notes
+```bash
+npm install
+```
 
-The website content is written in Hebrew.
+```bash
+cp .env.example .env.local
+```
+
+Fill in your Supabase project's URL and anon key in `.env.local`, execute the SQL migrations from `backend/migrations`, then run:
+
+```bash
+npm run dev
+```
+
+## Deployment
+
+Deployed on Netlify using `npm run build`, with SPA routing configured through `public/_redirects`.
