@@ -4,7 +4,7 @@ An internal operations portal for managing fresh orange juice vending machines a
 
 ## Live Website
 
-https://oboost-manager.netlify.app/
+https://oboost-manager.netlify.app
 ## Screenshots
 
 ### Overview
