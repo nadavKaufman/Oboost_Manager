@@ -1,4 +1,4 @@
-# OBoost Manager
+# OBoost Portal
 
 An internal operations portal for managing fresh orange juice vending machines across multiple locations — cleaning schedules, fault tracking, staff records, and inventory in one place.
 
