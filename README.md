@@ -6,7 +6,7 @@ The system centralizes machine monitoring, cleaning schedules, fault handling, e
 
 ## Live Website
 
-[https://oboost-portal.netlify.app/](https://oboost-portal.netlify.app/)
+[https://oboost-portal.netlify.app/](https://oboost-manager.netlify.app/)
 
 ## Screenshots
 
