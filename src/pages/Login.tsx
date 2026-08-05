@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import '../styles/landing.css';
 import '../styles/dashboard.css';
 
-const RESET_PASSWORD_REDIRECT_URL = 'https://oboost-portal.netlify.app/reset-password';
+const RESET_PASSWORD_REDIRECT_URL = 'https://oboost-manager.netlify.app/reset-password';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -35,7 +35,7 @@ export default function Login() {
       .eq('id', data.user.id)
       .single();
     setSubmitting(false);
-    navigate(profileRow?.role === 'manager' ? '/dashboard' : '/my-machines');
+    navigate(profileRow?.role === 'manager' || profileRow?.role === 'preview' ? '/dashboard' : '/my-machines');
   }
 
   async function handleForgotPassword() {

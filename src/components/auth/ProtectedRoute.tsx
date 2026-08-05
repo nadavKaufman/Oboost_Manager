@@ -14,7 +14,7 @@ export default function ProtectedRoute({ children, allowedRoles }: Props) {
   if (loading) return <LoadingScreen />;
   if (!session) return <Navigate to="/login" replace />;
   if (allowedRoles && (!profile || !allowedRoles.includes(profile.role))) {
-    return <Navigate to={profile?.role === 'manager' ? '/dashboard' : '/my-machines'} replace />;
+    return <Navigate to={profile?.role === 'manager' || profile?.role === 'preview' ? '/dashboard' : '/my-machines'} replace />;
   }
   return <>{children}</>;
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, type ChangeEvent, type FormEvent } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
-import { getEmployees, createEmployee, uploadEmployeePhoto, type EmployeeRecord } from '../lib/supabase';
+import { getEmployees, createEmployee, uploadEmployeePhoto, PREVIEW_BLOCKED_MESSAGE, type EmployeeRecord } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import '../styles/dashboard.css';
 
@@ -38,7 +38,11 @@ export default function Employees() {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
 
-  const canManage = profile?.role === 'manager';
+  // canViewManagerUI: preview sees the same manager-style interface as
+  // a real manager; every actual mutation is blocked separately below
+  // via isPreview, regardless of what's visible.
+  const canViewManagerUI = profile?.role === 'manager' || profile?.role === 'preview';
+  const isPreview = profile?.role === 'preview';
 
   const load = () => {
     setStatus('loading');
@@ -64,6 +68,7 @@ export default function Employees() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    if (isPreview) { setPhotoError(PREVIEW_BLOCKED_MESSAGE); return; }
     setPhotoError(null);
     setUploadingId(employeeId);
     const { error } = await uploadEmployeePhoto(employeeId, file);
@@ -78,6 +83,7 @@ export default function Employees() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (isPreview) { setError(PREVIEW_BLOCKED_MESSAGE); return; }
     setError(null);
     setSuccess(null);
     setSubmitting(true);
@@ -159,7 +165,7 @@ export default function Employees() {
                       ) : (
                         <div className="employee-avatar employee-avatar--fallback">{initials.toUpperCase() || '—'}</div>
                       )}
-                      {canManage && (
+                      {canViewManagerUI && (
                         <label className="employee-avatar-upload">
                           {uploadingId === emp.employee_id ? 'Uploading…' : 'Edit photo'}
                           <input
@@ -200,7 +206,7 @@ export default function Employees() {
           )}
         </div>
 
-        {canManage && (
+        {canViewManagerUI && (
           <div className="employee-form">
             <div className="machine-section__header">
               <span className="machine-section__title">Add Employee</span>

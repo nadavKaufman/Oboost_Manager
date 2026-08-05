@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import { useAuth } from '../context/AuthContext';
 import {
   getMachineDetails,
   uploadMalfunctionPhoto,
   reportMachineMalfunction,
+  PREVIEW_BLOCKED_MESSAGE,
   type ReportSeverity,
 } from '../lib/supabase';
 import '../styles/layout.css';
@@ -19,6 +21,8 @@ const EMPTY_FORM = { description: '', faultType: '', severity: 'low' as ReportSe
 export default function ReportMalfunction() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { profile } = useAuth();
+  const isPreview = profile?.role === 'preview';
 
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [machineName, setMachineName] = useState('');
@@ -49,6 +53,7 @@ export default function ReportMalfunction() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!id) return;
+    if (isPreview) { setError(PREVIEW_BLOCKED_MESSAGE); return; }
     setError(null);
     setSubmitting(true);
 
@@ -162,7 +167,10 @@ export default function ReportMalfunction() {
                 type="file"
                 accept="image/*"
                 className="employee-form__input"
-                onChange={e => setPhoto(e.target.files?.[0] ?? null)}
+                onChange={e => {
+                  if (isPreview) { e.target.value = ''; setError(PREVIEW_BLOCKED_MESSAGE); return; }
+                  setPhoto(e.target.files?.[0] ?? null);
+                }}
               />
             </div>
             <div className="employee-form__actions">

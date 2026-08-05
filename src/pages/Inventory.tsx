@@ -15,6 +15,7 @@ import {
   recordSparePartDelivery,
   recordSparePartWithdrawal,
   recordSparePartAdjustment,
+  PREVIEW_BLOCKED_MESSAGE,
   type OrangeInventoryData,
   type SparePartRecord,
   type SparePartTransactionRecord,
@@ -36,7 +37,11 @@ const EMPTY_PART_FORM = { name: '', description: '', unit: 'unit' };
 
 export default function Inventory() {
   const { profile } = useAuth();
-  const isManager = profile?.role === 'manager';
+  // canViewManagerUI: preview sees the same manager-style interface as
+  // a real manager; every actual mutation is blocked separately below
+  // via isPreview, regardless of what's visible.
+  const canViewManagerUI = profile?.role === 'manager' || profile?.role === 'preview';
+  const isPreview = profile?.role === 'preview';
 
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -112,6 +117,7 @@ export default function Inventory() {
 
   async function handleDelivery(e: FormEvent) {
     e.preventDefault();
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     const qty = Number(deliveryQty);
     if (!Number.isInteger(qty) || qty <= 0) {
@@ -132,6 +138,7 @@ export default function Inventory() {
 
   async function handleWithdraw(e: FormEvent) {
     e.preventDefault();
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     const qty = Number(withdrawQty);
     if (!Number.isInteger(qty) || qty <= 0) {
@@ -152,6 +159,7 @@ export default function Inventory() {
 
   async function handleAdjust(e: FormEvent) {
     e.preventDefault();
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     const qty = Number(adjustQty);
     if (!Number.isInteger(qty) || qty === 0) {
@@ -176,6 +184,7 @@ export default function Inventory() {
 
   async function handleCreatePart(e: FormEvent) {
     e.preventDefault();
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     if (!partForm.name.trim()) {
       setActionError('Spare part name is required.');
@@ -193,6 +202,7 @@ export default function Inventory() {
   }
 
   async function handleToggleActive(id: string, isActive: boolean) {
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     const { error } = await setSparePartActive(id, !isActive);
     if (error) setActionError(error);
@@ -201,6 +211,7 @@ export default function Inventory() {
 
   async function handlePartDelivery(e: FormEvent) {
     e.preventDefault();
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     const qty = Number(partDeliveryQty);
     if (!partDeliveryItem) {
@@ -225,6 +236,7 @@ export default function Inventory() {
 
   async function handlePartWithdraw(e: FormEvent) {
     e.preventDefault();
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     const qty = Number(partWithdrawQty);
     if (!partWithdrawItem) {
@@ -249,6 +261,7 @@ export default function Inventory() {
 
   async function handlePartAdjust(e: FormEvent) {
     e.preventDefault();
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     const qty = Number(partAdjustQty);
     if (!partAdjustItem) {
@@ -276,7 +289,7 @@ export default function Inventory() {
   }
 
   const activeParts = parts.filter(p => p.isActive);
-  const visibleParts = isManager ? parts : activeParts;
+  const visibleParts = canViewManagerUI ? parts : activeParts;
 
   return (
     <DashboardLayout title="Inventory" currentUser={FALLBACK_USER}>
@@ -318,7 +331,7 @@ export default function Inventory() {
               />
             </div>
 
-            {isManager && (
+            {canViewManagerUI && (
               <div className="employee-form">
                 <div className="machine-section__header">
                   <span className="machine-section__title">Record Supplier Delivery</span>
@@ -388,7 +401,7 @@ export default function Inventory() {
               </form>
             </div>
 
-            {isManager && (
+            {canViewManagerUI && (
               <div className="employee-form">
                 <div className="machine-section__header">
                   <span className="machine-section__title">Record Adjustment</span>
@@ -427,7 +440,7 @@ export default function Inventory() {
             )}
 
             <CollapsibleSection
-              title={isManager ? 'All Movements' : 'Your Movements'}
+              title={canViewManagerUI ? 'All Movements' : 'Your Movements'}
               count={`${data.transactions.length} movements`}
             >
               {data.transactions.length === 0 ? (
@@ -480,7 +493,7 @@ export default function Inventory() {
 
         {partsStatus === 'ready' && (
           <>
-            {isManager && (
+            {canViewManagerUI && (
               <div className="employee-form">
                 <div className="machine-section__header">
                   <span className="machine-section__title">Add Spare Part</span>
@@ -537,8 +550,8 @@ export default function Inventory() {
                       <th>Name</th>
                       <th>Unit</th>
                       <th>Stock</th>
-                      {isManager && <th>Status</th>}
-                      {isManager && <th>Actions</th>}
+                      {canViewManagerUI && <th>Status</th>}
+                      {canViewManagerUI && <th>Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -554,7 +567,7 @@ export default function Inventory() {
                             {part.currentStock}
                           </span>
                         </td>
-                        {isManager && (
+                        {canViewManagerUI && (
                           <td data-label="Status">
                             <span className={`status-badge status-badge--${part.isActive ? 'clean' : 'maintenance'}`}>
                               <span className="status-badge__dot" />
@@ -562,7 +575,7 @@ export default function Inventory() {
                             </span>
                           </td>
                         )}
-                        {isManager && (
+                        {canViewManagerUI && (
                           <td data-label="Actions">
                             <button className="btn-report-issue" onClick={() => handleToggleActive(part.id, part.isActive)}>
                               {part.isActive ? 'Deactivate' : 'Activate'}
@@ -576,7 +589,7 @@ export default function Inventory() {
               )}
             </div>
 
-            {isManager && (
+            {canViewManagerUI && (
               <div className="employee-form">
                 <div className="machine-section__header">
                   <span className="machine-section__title">Record Spare Part Delivery</span>
@@ -676,7 +689,7 @@ export default function Inventory() {
               </form>
             </div>
 
-            {isManager && (
+            {canViewManagerUI && (
               <div className="employee-form">
                 <div className="machine-section__header">
                   <span className="machine-section__title">Record Spare Part Adjustment</span>
@@ -730,7 +743,7 @@ export default function Inventory() {
             )}
 
             <CollapsibleSection
-              title={isManager ? 'All Part Movements' : 'Your Part Movements'}
+              title={canViewManagerUI ? 'All Part Movements' : 'Your Part Movements'}
               count={`${partTxns.length} movements`}
             >
               {partTxns.length === 0 ? (

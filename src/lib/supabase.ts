@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 // ---------------------------------------------------------------------------
 // Domain types — mirror the database check constraints exactly
 // ---------------------------------------------------------------------------
-export type UserRole       = 'employee' | 'manager';
+export type UserRole       = 'employee' | 'manager' | 'preview';
 export type FaultStatus    = 'ok' | 'fault' | 'maintenance';
 export type CleaningStatus = 'clean' | 'needs_cleaning' | 'overdue';
 export type ReportSeverity = 'low' | 'medium' | 'high' | 'critical';
@@ -17,6 +17,11 @@ export const REPORT_STATUS_LABEL: Record<ReportStatus, string> = {
   resolved: 'Resolved',
   closed: 'Closed',
 };
+
+// Shown for every mutation blocked for the read-only 'preview' role,
+// both when the frontend intercepts a click before sending anything,
+// and when a request still reaches the server and the RPC guard fires.
+export const PREVIEW_BLOCKED_MESSAGE = 'Read-only preview — changes are disabled.';
 
 // ---------------------------------------------------------------------------
 // Database shape — used by createClient<Database> for end-to-end type safety
@@ -335,6 +340,56 @@ export interface GetEmployeesOptions {
 }
 
 export async function getEmployees(options: GetEmployeesOptions = {}): Promise<GetEmployeesResult> {
+  // Preview never reads the employees table directly (its RLS policy
+  // doesn't grant that), so its data comes exclusively from a
+  // SECURITY DEFINER function that never selects email/phone_number —
+  // masked server-side, not filtered after the fact. Real managers and
+  // employees are completely unaffected and fall through to the
+  // existing direct query below, unchanged.
+  const { data: userData } = await supabase.auth.getUser();
+  const uid = userData.user?.id;
+  if (uid) {
+    const { data: roleRow } = await supabase.from('profiles').select('role').eq('id', uid).single();
+    if ((roleRow as { role: UserRole } | null)?.role === 'preview') {
+      const result = await supabase.rpc('get_preview_employee_directory', {
+        p_directory_only: options.directoryOnly === true,
+      } as never);
+
+      type PreviewRow = {
+        employee_id: string;
+        first_name:  string;
+        last_name:   string;
+        job_title:   string;
+        hire_date:   string | null;
+        created_at:  string;
+        role:        UserRole;
+        avatar_url:  string | null;
+      };
+      const rows = (result.data as PreviewRow[] | null) ?? [];
+
+      if (result.error) {
+        if (import.meta.env.DEV) console.error('[oboost] get_preview_employee_directory error:', result.error.message);
+        return { employees: [], error: 'Could not load employees. Please try again.' };
+      }
+
+      return {
+        employees: rows.map(row => ({
+          employee_id:  row.employee_id,
+          first_name:   row.first_name,
+          last_name:    row.last_name,
+          email:        '',
+          phone_number: '',
+          hire_date:    row.hire_date,
+          job_title:    row.job_title,
+          created_at:   row.created_at,
+          photoUrl:     row.avatar_url,
+          role:         row.role,
+        })),
+        error: null,
+      };
+    }
+  }
+
   const base = supabase
     .from('employees')
     .select('employee_id, first_name, last_name, email, phone_number, hire_date, job_title, created_at, profiles (role, avatar_url)');
@@ -518,6 +573,7 @@ export async function markMachineCleaned(machineId: string): Promise<{ error: st
     if (import.meta.env.DEV) {
       console.error('[oboost] markMachineCleaned error:', error.message);
     }
+    if (error.message.includes('Read-only preview')) return { error: error.message };
     return { error: 'Could not mark the machine as cleaned. Please try again.' };
   }
   return { error: null };
@@ -869,6 +925,7 @@ export async function reportMachineMalfunction(input: ReportMalfunctionInput): P
       error.message.includes('Not authenticated')
       || error.message.includes('Not authorized')
       || error.message.includes('Machine does not exist')
+      || error.message.includes('Read-only preview')
     ) {
       return { error: error.message };
     }
@@ -1003,7 +1060,7 @@ export async function recordOrangeWithdrawal(quantity: number, notes: string): P
   const { error } = await supabase.rpc('record_orange_withdrawal', { p_quantity: quantity, p_notes: notes } as never);
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] recordOrangeWithdrawal error:', error.message);
-    if (error.message.includes('Insufficient stock')) return { error: error.message };
+    if (error.message.includes('Insufficient stock') || error.message.includes('Read-only preview')) return { error: error.message };
     return { error: 'Could not record the withdrawal. Please try again.' };
   }
   return { error: null };
@@ -1189,7 +1246,7 @@ export async function recordSparePartWithdrawal(itemId: string, quantity: number
   } as never);
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] recordSparePartWithdrawal error:', error.message);
-    if (error.message.includes('Insufficient stock')) return { error: error.message };
+    if (error.message.includes('Insufficient stock') || error.message.includes('Read-only preview')) return { error: error.message };
     return { error: 'Could not record the withdrawal. Please try again.' };
   }
   return { error: null };
@@ -1351,6 +1408,7 @@ export async function completeTask(
 
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] completeTask error:', error.message);
+    if (error.message.includes('Read-only preview')) return { error: error.message };
     return { error: 'Could not complete the task. Please try again.' };
   }
   return { error: null };

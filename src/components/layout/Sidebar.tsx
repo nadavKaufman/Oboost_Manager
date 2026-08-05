@@ -44,7 +44,10 @@ function isActivePath(pathname: string, itemPath: string): boolean {
 
 export default function Sidebar({ open, onClose, userRole, collapsed, onToggleCollapse }: Props) {
   const location = useLocation();
-  const navItems = userRole === 'manager' ? MANAGER_NAV_ITEMS : EMPLOYEE_NAV_ITEMS;
+  // Preview is a read-only stand-in for the manager view, so it gets
+  // the same nav items — every one of its actions is blocked further
+  // downstream (RLS/RPC guards + frontend mutation guards), not here.
+  const navItems = userRole === 'manager' || userRole === 'preview' ? MANAGER_NAV_ITEMS : EMPLOYEE_NAV_ITEMS;
 
   return (
     <aside

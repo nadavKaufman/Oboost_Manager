@@ -28,7 +28,7 @@ export default function App() {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={['manager', 'preview']}>
                 <Dashboard />
               </ProtectedRoute>
             }
@@ -36,7 +36,7 @@ export default function App() {
           <Route
             path="/machines"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={['manager', 'preview']}>
                 <Machines />
               </ProtectedRoute>
             }
@@ -60,7 +60,7 @@ export default function App() {
           <Route
             path="/employees"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={['manager', 'preview']}>
                 <Employees />
               </ProtectedRoute>
             }
@@ -68,7 +68,7 @@ export default function App() {
           <Route
             path="/reports"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={['manager', 'preview']}>
                 <Reports />
               </ProtectedRoute>
             }
@@ -76,7 +76,7 @@ export default function App() {
           <Route
             path="/tasks"
             element={
-              <ProtectedRoute allowedRoles={['manager']}>
+              <ProtectedRoute allowedRoles={['manager', 'preview']}>
                 <Tasks />
               </ProtectedRoute>
             }

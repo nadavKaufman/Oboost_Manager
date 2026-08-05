@@ -6,11 +6,13 @@ import {
   createTask,
   getEmployees,
   getMachines,
+  PREVIEW_BLOCKED_MESSAGE,
   type TaskRecord,
   type EmployeeRecord,
   type TaskType,
 } from '../lib/supabase';
 import { type Machine } from '../types/machine';
+import { useAuth } from '../context/AuthContext';
 import '../styles/layout.css';
 import '../styles/dashboard.css';
 
@@ -28,6 +30,8 @@ const EMPTY_FORM = {
 };
 
 export default function Tasks() {
+  const { profile } = useAuth();
+  const isPreview = profile?.role === 'preview';
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
@@ -67,6 +71,7 @@ export default function Tasks() {
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     setSuccess(null);
     if (!form.title.trim() || !form.assignedTo) {

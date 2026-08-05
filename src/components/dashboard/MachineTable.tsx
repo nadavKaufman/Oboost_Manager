@@ -38,7 +38,10 @@ export default function MachineTable({
   onMarkWorking,
   savingCleanIds,
 }: Props) {
-  const canMarkWorking = currentUserRole === 'manager';
+  // Preview sees the same "Mark as Working" affordance a manager
+  // would (full manager-style read view); the click itself is blocked
+  // by the parent's onMarkWorking handler, not by hiding this button.
+  const canMarkWorking = currentUserRole === 'manager' || currentUserRole === 'preview';
 
   // Mobile-only accordion: which single row (if any) has its elapsed-time
   // text + actions revealed. Desktop ignores this entirely (see the

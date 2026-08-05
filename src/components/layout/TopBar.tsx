@@ -13,6 +13,7 @@ interface Props {
 const ROLE_LABEL: Record<UserRole, string> = {
   manager: 'Manager',
   employee: 'Employee',
+  preview: 'Preview',
 };
 
 export default function TopBar({

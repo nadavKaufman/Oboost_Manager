@@ -10,6 +10,7 @@ import {
   markMachineCleaned,
   createMachine,
   uploadMachineImage,
+  PREVIEW_BLOCKED_MESSAGE,
 } from '../lib/supabase';
 import '../styles/layout.css';
 import '../styles/dashboard.css';
@@ -44,7 +45,12 @@ export default function Machines({
   const [savingCleanIds, setSavingCleanIds] = useState<Set<string>>(new Set());
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const canManage = profile?.role === 'manager';
+  // canViewManagerUI: preview sees the same manager-style interface as
+  // a real manager (forms, buttons, sections included) — every actual
+  // mutation is blocked separately below via isPreview, regardless of
+  // what's visible.
+  const canViewManagerUI = profile?.role === 'manager' || profile?.role === 'preview';
+  const isPreview = profile?.role === 'preview';
   const [machineForm, setMachineForm] = useState(EMPTY_MACHINE_FORM);
   const [machineImage, setMachineImage] = useState<File | null>(null);
   const [creatingMachine, setCreatingMachine] = useState(false);
@@ -65,6 +71,7 @@ export default function Machines({
   }, [loading, session]);
 
   async function handleMarkCleaned(id: string) {
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     setSavingCleanIds(prev => new Set(prev).add(id));
 
@@ -85,6 +92,7 @@ export default function Machines({
   }
 
   async function handleMarkWorking(id: string) {
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     setSavingWorkingIds(prev => new Set(prev).add(id));
 
@@ -106,6 +114,7 @@ export default function Machines({
 
   async function handleCreateMachine(e: FormEvent) {
     e.preventDefault();
+    if (isPreview) { setCreateError(PREVIEW_BLOCKED_MESSAGE); return; }
     setCreateError(null);
     setCreatedMachine(null);
 
@@ -189,7 +198,7 @@ export default function Machines({
           />
         )}
 
-        {canManage && (
+        {canViewManagerUI && (
           <div className="employee-form">
             <div className="machine-section__header">
               <span className="machine-section__title">Add Machine</span>

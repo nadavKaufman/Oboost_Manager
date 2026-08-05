@@ -6,7 +6,14 @@ The system centralizes machine monitoring, cleaning schedules, fault handling, e
 
 ## Live Website
 
-[https://oboost-portal.netlify.app/](https://oboost-manager.netlify.app/)
+[https://oboost-manager.netlify.app/](https://oboost-manager.netlify.app/)
+
+### Read-only Preview Account
+
+Email: `oboost.preview@gmail.com`
+Password: `oboost`
+
+Sign in with these credentials to explore the live system and its current data — every screen and record is real, but no changes can be made; every insert, update, delete, upload, and mutating action is blocked.
 
 ## Screenshots
 
@@ -80,3 +87,4 @@ Install the project dependencies:
 
 ```bash
 npm install
+```

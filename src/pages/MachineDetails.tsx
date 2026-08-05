@@ -11,6 +11,7 @@ import {
   markMachineCleaned,
   markMachineWorking,
   REPORT_STATUS_LABEL,
+  PREVIEW_BLOCKED_MESSAGE,
   type MachineDetails as MachineDetailsData,
 } from '../lib/supabase';
 import { getMachineStatus, getCleaningElapsedText } from '../types/machine';
@@ -40,7 +41,11 @@ const EMPTY_EDIT_FORM = { name: '', location: '', maintenanceNotes: '' };
 export default function MachineDetails() {
   const { id } = useParams<{ id: string }>();
   const { profile } = useAuth();
-  const isManager = profile?.role === 'manager';
+  // canViewManagerUI: preview sees the same manager-style interface as
+  // a real manager; every actual mutation is blocked separately below
+  // via isPreview, regardless of what's visible.
+  const canViewManagerUI = profile?.role === 'manager' || profile?.role === 'preview';
+  const isPreview = profile?.role === 'preview';
 
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [details, setDetails] = useState<MachineDetailsData | null>(null);
@@ -82,6 +87,7 @@ export default function MachineDetails() {
 
   async function handleMarkCleaned() {
     if (!id) return;
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     setSavingClean(true);
     const { error } = await markMachineCleaned(id);
@@ -92,6 +98,7 @@ export default function MachineDetails() {
 
   async function handleMarkWorking() {
     if (!id) return;
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     setSavingWorking(true);
     const { error } = await markMachineWorking(id);
@@ -103,6 +110,7 @@ export default function MachineDetails() {
   async function handleSaveEdit(e: FormEvent) {
     e.preventDefault();
     if (!id) return;
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     setSavingEdit(true);
     const { error } = await updateMachine(id, editForm);
@@ -117,6 +125,7 @@ export default function MachineDetails() {
 
   async function handleToggleActive() {
     if (!id || !details) return;
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     const { error } = await updateMachine(id, { isActive: !details.machine.isActive });
     if (error) setActionError(error);
@@ -128,6 +137,7 @@ export default function MachineDetails() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     setImageUploading(true);
     const { error } = await uploadMachineImage(id, file);
@@ -137,6 +147,7 @@ export default function MachineDetails() {
   }
 
   async function handleMarkInProgress(reportId: string) {
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     const { error } = await markMaintenanceReportInProgress(reportId);
     if (error) setActionError(error);
@@ -144,6 +155,7 @@ export default function MachineDetails() {
   }
 
   async function handleResolve(reportId: string) {
+    if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
     setSavingResolve(true);
     const { error } = await resolveMaintenanceReport(reportId, resolutionNotes);
@@ -175,7 +187,7 @@ export default function MachineDetails() {
             <span className="alert-banner__dot" />
             This machine could not be found, or you do not have access to it.
           </div>
-          <Link to={isManager ? '/machines' : '/my-machines'} className="btn-mark-clean">
+          <Link to={canViewManagerUI ? '/machines' : '/my-machines'} className="btn-mark-clean">
             ← Back to Machines
           </Link>
         </div>
@@ -209,7 +221,7 @@ export default function MachineDetails() {
             ) : (
               <div className="machine-detail-image__placeholder">No image</div>
             )}
-            {isManager && (
+            {canViewManagerUI && (
               <label className="btn-mark-clean machine-detail-image__upload">
                 {imageUploading ? 'Uploading…' : 'Upload Image'}
                 <input type="file" accept="image/*" hidden onChange={handleImageChange} disabled={imageUploading} />
@@ -270,24 +282,24 @@ export default function MachineDetails() {
           <Link className="btn-report-issue" to={`/machines/${id}/report-malfunction`}>
             Report Malfunction
           </Link>
-          {isManager && machine.faultStatus === 'fault' && (
+          {canViewManagerUI && machine.faultStatus === 'fault' && (
             <button className="btn-mark-working" disabled={savingWorking} onClick={handleMarkWorking}>
               {savingWorking ? 'Saving…' : 'Mark as Working'}
             </button>
           )}
-          {isManager && (
+          {canViewManagerUI && (
             <button className="btn-report-issue" onClick={handleToggleActive}>
               {machine.isActive ? 'Deactivate Machine' : 'Activate Machine'}
             </button>
           )}
-          {isManager && (
+          {canViewManagerUI && (
             <button className="btn-report-issue" onClick={() => setEditing(o => !o)}>
               {editing ? 'Cancel Edit' : 'Edit Machine'}
             </button>
           )}
         </div>
 
-        {isManager && editing && (
+        {canViewManagerUI && editing && (
           <div className="employee-form">
             <div className="machine-section__header">
               <span className="machine-section__title">Edit Machine</span>
@@ -373,7 +385,7 @@ export default function MachineDetails() {
                   <th>Description</th>
                   <th>Severity</th>
                   <th>Status</th>
-                  {isManager && <th>Actions</th>}
+                  {canViewManagerUI && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -394,7 +406,7 @@ export default function MachineDetails() {
                     </td>
                     <td>{report.severity}</td>
                     <td>{REPORT_STATUS_LABEL[report.status]}</td>
-                    {isManager && (
+                    {canViewManagerUI && (
                       <td>
                         <div className="table-actions">
                           {report.status === 'open' && (

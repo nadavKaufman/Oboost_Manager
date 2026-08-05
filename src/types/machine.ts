@@ -1,4 +1,4 @@
-export type UserRole = 'manager' | 'employee';
+export type UserRole = 'manager' | 'employee' | 'preview';
 
 export type FaultStatus = 'ok' | 'fault' | 'maintenance';
 
