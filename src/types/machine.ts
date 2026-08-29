@@ -66,8 +66,9 @@ export function getMachineStatus(machine: Machine): MachineStatus {
 // Shared "small secondary text" for how long ago a machine was cleaned —
 // used everywhere cleaning status is shown so the wording stays identical.
 export function getCleaningElapsedText(daysSinceCleaned: number | null): string {
-  if (daysSinceCleaned === null) return 'Never cleaned';
-  if (daysSinceCleaned === 0) return 'Today';
-  if (daysSinceCleaned === 1) return '1 day passed';
-  return `${daysSinceCleaned} days passed`;
+  if (daysSinceCleaned === null) return 'מעולם לא נוקתה';
+  if (daysSinceCleaned === 0) return 'היום';
+  if (daysSinceCleaned === 1) return 'אתמול';
+  if (daysSinceCleaned === 2) return 'לפני יומיים';
+  return `לפני ${daysSinceCleaned} ימים`;
 }

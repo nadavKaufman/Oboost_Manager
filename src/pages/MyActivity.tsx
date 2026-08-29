@@ -21,10 +21,12 @@ const FALLBACK_USER = { name: '', role: 'employee' as const };
 type LoadStatus = 'loading' | 'error' | 'ready';
 
 const TYPE_LABEL: Record<string, string> = {
-  delivery: 'Delivery',
-  withdrawal: 'Withdrawal',
-  adjustment: 'Adjustment',
+  delivery: 'קבלת סחורה',
+  withdrawal: 'משיכה',
+  adjustment: 'התאמה',
 };
+
+const SEVERITY_LABEL: Record<string, string> = { low: 'נמוכה', medium: 'בינונית', high: 'גבוהה', critical: 'קריטית' };
 
 export default function MyActivity() {
   const [status, setStatus] = useState<LoadStatus>('loading');
@@ -62,19 +64,19 @@ export default function MyActivity() {
   }, [load]);
 
   return (
-    <DashboardLayout title="My Activity" currentUser={FALLBACK_USER}>
+    <DashboardLayout title="הפעילות שלי" currentUser={FALLBACK_USER}>
       <div className="dashboard-page">
         <div className="page-header">
-          <h2 className="page-header__title">My Activity</h2>
-          <p className="page-header__subtitle">Your cleaning, malfunction, inventory, and task activity.</p>
+          <h2 className="page-header__title">הפעילות שלי</h2>
+          <p className="page-header__subtitle">פעילות הניקיון, התקלות, המלאי והמשימות שלכם.</p>
         </div>
 
-        {status === 'loading' && <p className="employee-empty">Loading your activity…</p>}
+        {status === 'loading' && <p className="employee-empty">טוען את הפעילות שלכם…</p>}
 
         {status === 'error' && (
           <div className="alert-banner">
             <span className="alert-banner__dot" />
-            Could not load your activity. Please try again.
+            לא ניתן היה לטעון את הפעילות שלכם. אנא נסו שוב.
           </div>
         )}
 
@@ -82,24 +84,24 @@ export default function MyActivity() {
           <>
             <div className="machine-section">
               <div className="machine-section__header">
-                <span className="machine-section__title">My Cleaning Actions</span>
-                <span className="machine-section__count">{cleaning.length} records</span>
+                <span className="machine-section__title">פעולות הניקיון שלי</span>
+                <span className="machine-section__count">{cleaning.length} רשומות</span>
               </div>
               {cleaning.length === 0 ? (
-                <p className="employee-empty">You haven't cleaned any machines yet.</p>
+                <p className="employee-empty">עדיין לא ניקיתם מכונות.</p>
               ) : (
                 <table className="machine-table">
                   <thead>
                     <tr>
-                      <th>Machine</th>
-                      <th>Date</th>
+                      <th>מכונה</th>
+                      <th>תאריך</th>
                     </tr>
                   </thead>
                   <tbody>
                     {cleaning.map(r => (
                       <tr key={r.id}>
                         <td>{r.machineName}</td>
-                        <td>{new Date(r.cleanedAt).toLocaleString()}</td>
+                        <td>{new Date(r.cleanedAt).toLocaleString('he-IL')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -109,20 +111,20 @@ export default function MyActivity() {
 
             <div className="machine-section">
               <div className="machine-section__header">
-                <span className="machine-section__title">My Malfunction Reports</span>
-                <span className="machine-section__count">{malfunctions.length} reports</span>
+                <span className="machine-section__title">דיווחי התקלות שלי</span>
+                <span className="machine-section__count">{malfunctions.length} דיווחים</span>
               </div>
               {malfunctions.length === 0 ? (
-                <p className="employee-empty">You haven't reported any malfunctions yet.</p>
+                <p className="employee-empty">עדיין לא דיווחתם על תקלות.</p>
               ) : (
                 <table className="machine-table">
                   <thead>
                     <tr>
-                      <th>Machine</th>
-                      <th>Description</th>
-                      <th>Severity</th>
-                      <th>Status</th>
-                      <th>Date</th>
+                      <th>מכונה</th>
+                      <th>תיאור</th>
+                      <th>חומרה</th>
+                      <th>סטטוס</th>
+                      <th>תאריך</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -130,9 +132,9 @@ export default function MyActivity() {
                       <tr key={r.id}>
                         <td>{r.machineName}</td>
                         <td>{r.description}</td>
-                        <td>{r.severity}</td>
+                        <td>{SEVERITY_LABEL[r.severity] ?? r.severity}</td>
                         <td>{REPORT_STATUS_LABEL[r.status]}</td>
-                        <td>{new Date(r.reportedAt).toLocaleString()}</td>
+                        <td>{new Date(r.reportedAt).toLocaleString('he-IL')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -142,19 +144,19 @@ export default function MyActivity() {
 
             <div className="machine-section">
               <div className="machine-section__header">
-                <span className="machine-section__title">My Orange Carton Withdrawals</span>
-                <span className="machine-section__count">{orangeTxns.length} movements</span>
+                <span className="machine-section__title">משיכות קרטוני התפוזים שלי</span>
+                <span className="machine-section__count">{orangeTxns.length} תנועות</span>
               </div>
               {orangeTxns.length === 0 ? (
-                <p className="employee-empty">You haven't recorded any orange carton withdrawals yet.</p>
+                <p className="employee-empty">עדיין לא רשמתם משיכות קרטוני תפוזים.</p>
               ) : (
                 <table className="machine-table">
                   <thead>
                     <tr>
-                      <th>Type</th>
-                      <th>Quantity</th>
-                      <th>Notes</th>
-                      <th>Date</th>
+                      <th>סוג</th>
+                      <th>כמות</th>
+                      <th>הערות</th>
+                      <th>תאריך</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -163,7 +165,7 @@ export default function MyActivity() {
                         <td>{TYPE_LABEL[t.type]}</td>
                         <td>{t.quantity > 0 ? `+${t.quantity}` : t.quantity}</td>
                         <td>{t.notes || '—'}</td>
-                        <td>{new Date(t.createdAt).toLocaleString()}</td>
+                        <td>{new Date(t.createdAt).toLocaleString('he-IL')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -173,20 +175,20 @@ export default function MyActivity() {
 
             <div className="machine-section">
               <div className="machine-section__header">
-                <span className="machine-section__title">My Spare Parts Withdrawals</span>
-                <span className="machine-section__count">{partTxns.length} movements</span>
+                <span className="machine-section__title">משיכות חלקי החילוף שלי</span>
+                <span className="machine-section__count">{partTxns.length} תנועות</span>
               </div>
               {partTxns.length === 0 ? (
-                <p className="employee-empty">You haven't recorded any spare part withdrawals yet.</p>
+                <p className="employee-empty">עדיין לא רשמתם משיכות חלקי חילוף.</p>
               ) : (
                 <table className="machine-table">
                   <thead>
                     <tr>
-                      <th>Part</th>
-                      <th>Type</th>
-                      <th>Quantity</th>
-                      <th>Notes</th>
-                      <th>Date</th>
+                      <th>חלק</th>
+                      <th>סוג</th>
+                      <th>כמות</th>
+                      <th>הערות</th>
+                      <th>תאריך</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -196,7 +198,7 @@ export default function MyActivity() {
                         <td>{TYPE_LABEL[t.type]}</td>
                         <td>{t.quantity > 0 ? `+${t.quantity}` : t.quantity}</td>
                         <td>{t.notes || '—'}</td>
-                        <td>{new Date(t.createdAt).toLocaleString()}</td>
+                        <td>{new Date(t.createdAt).toLocaleString('he-IL')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -206,19 +208,19 @@ export default function MyActivity() {
 
             <div className="machine-section">
               <div className="machine-section__header">
-                <span className="machine-section__title">My Tasks</span>
-                <span className="machine-section__count">{tasks.length} tasks</span>
+                <span className="machine-section__title">המשימות שלי</span>
+                <span className="machine-section__count">{tasks.length} משימות</span>
               </div>
               {tasks.length === 0 ? (
-                <p className="employee-empty">No tasks assigned yet.</p>
+                <p className="employee-empty">עדיין לא הוקצו לכם משימות.</p>
               ) : (
                 <table className="machine-table">
                   <thead>
                     <tr>
-                      <th>Title</th>
-                      <th>Machine</th>
-                      <th>Due</th>
-                      <th>Status</th>
+                      <th>כותרת</th>
+                      <th>מכונה</th>
+                      <th>יעד</th>
+                      <th>סטטוס</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -230,7 +232,7 @@ export default function MyActivity() {
                         <td>
                           <span className={`status-badge status-badge--${t.status === 'completed' ? 'clean' : 'maintenance'}`}>
                             <span className="status-badge__dot" />
-                            {t.status === 'completed' ? 'Completed' : 'Pending'}
+                            {t.status === 'completed' ? 'הושלם' : 'ממתין'}
                           </span>
                         </td>
                       </tr>

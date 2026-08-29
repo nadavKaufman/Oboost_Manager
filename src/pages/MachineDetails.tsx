@@ -23,12 +23,14 @@ const FALLBACK_USER = { name: '', role: 'employee' as const };
 type LoadStatus = 'loading' | 'error' | 'ready';
 
 const STATUS_LABEL: Record<string, string> = {
-  clean: 'Clean',
-  due_soon: 'Clean Due',
-  overdue: 'Overdue',
+  clean: 'נקי',
+  due_soon: 'דורש ניקוי',
+  overdue: 'ניקוי דחוף',
 };
 
-const FAULT_LABEL: Record<string, string> = { ok: 'OK', fault: 'Malfunction', maintenance: 'Maintenance' };
+const FAULT_LABEL: Record<string, string> = { ok: 'תקין', fault: 'תקלה', maintenance: 'בתחזוקה' };
+
+const SEVERITY_LABEL: Record<string, string> = { low: 'נמוכה', medium: 'בינונית', high: 'גבוהה', critical: 'קריטית' };
 
 const FAULT_STATUS_CLASS: Record<string, string> = {
   ok: 'status-badge--clean',
@@ -171,9 +173,9 @@ export default function MachineDetails() {
 
   if (status === 'loading') {
     return (
-      <DashboardLayout title="Machine Details" currentUser={FALLBACK_USER}>
+      <DashboardLayout title="פרטי מכונה" currentUser={FALLBACK_USER}>
         <div className="dashboard-page">
-          <p className="employee-empty">Loading machine…</p>
+          <p className="employee-empty">טוען מכונה…</p>
         </div>
       </DashboardLayout>
     );
@@ -181,14 +183,14 @@ export default function MachineDetails() {
 
   if (status === 'error' || !details) {
     return (
-      <DashboardLayout title="Machine Details" currentUser={FALLBACK_USER}>
+      <DashboardLayout title="פרטי מכונה" currentUser={FALLBACK_USER}>
         <div className="dashboard-page">
           <div className="alert-banner">
             <span className="alert-banner__dot" />
-            This machine could not be found, or you do not have access to it.
+            המכונה לא נמצאה, או שאין לכם גישה אליה.
           </div>
           <Link to={canViewManagerUI ? '/machines' : '/my-machines'} className="btn-mark-clean">
-            ← Back to Machines
+            → חזרה למכונות
           </Link>
         </div>
       </DashboardLayout>
@@ -204,7 +206,7 @@ export default function MachineDetails() {
       <div className="dashboard-page">
         <div className="page-header">
           <h2 className="page-header__title">{machine.name}</h2>
-          <p className="page-header__subtitle">{machine.location || 'No location on file'}</p>
+          <p className="page-header__subtitle">{machine.location || 'לא צוין מיקום'}</p>
         </div>
 
         {actionError && (
@@ -219,11 +221,11 @@ export default function MachineDetails() {
             {machine.imageUrl ? (
               <img src={machine.imageUrl} alt={machine.name} />
             ) : (
-              <div className="machine-detail-image__placeholder">No image</div>
+              <div className="machine-detail-image__placeholder">אין תמונה</div>
             )}
             {canViewManagerUI && (
               <label className="btn-mark-clean machine-detail-image__upload">
-                {imageUploading ? 'Uploading…' : 'Upload Image'}
+                {imageUploading ? 'מעלה…' : 'העלאת תמונה'}
                 <input type="file" accept="image/*" hidden onChange={handleImageChange} disabled={imageUploading} />
               </label>
             )}
@@ -231,18 +233,18 @@ export default function MachineDetails() {
 
           <div className="machine-detail-info">
             <div className="machine-detail-row">
-              <span className="machine-detail-label">Location</span>
+              <span className="machine-detail-label">מיקום</span>
               <span>{machine.location || '—'}</span>
             </div>
             <div className="machine-detail-row">
-              <span className="machine-detail-label">Machine Status</span>
+              <span className="machine-detail-label">סטטוס מכונה</span>
               <span className={`status-badge status-badge--${machine.isActive ? 'clean' : 'overdue'}`}>
                 <span className="status-badge__dot" />
-                {machine.isActive ? 'Active' : 'Inactive'}
+                {machine.isActive ? 'פעיל' : 'לא פעיל'}
               </span>
             </div>
             <div className="machine-detail-row">
-              <span className="machine-detail-label">Cleaning</span>
+              <span className="machine-detail-label">ניקיון</span>
               <span
                 className={`status-badge status-badge--${cleanStatus}${cleanStatus === 'overdue' ? ' status-badge--cleaning-overdue' : ''}`}
               >
@@ -250,51 +252,51 @@ export default function MachineDetails() {
               </span>
             </div>
             <div className="machine-detail-row">
-              <span className="machine-detail-label">Last Cleaned</span>
+              <span className="machine-detail-label">ניקוי אחרון</span>
               <span>{getCleaningElapsedText(daysSinceCleaned)}</span>
             </div>
             <div className="machine-detail-row">
-              <span className="machine-detail-label">Malfunction</span>
+              <span className="machine-detail-label">תקלה</span>
               <span className={`status-badge ${FAULT_STATUS_CLASS[machine.faultStatus]}`}>
                 <span className="status-badge__dot" />
                 {FAULT_LABEL[machine.faultStatus]}
               </span>
             </div>
             <div className="machine-detail-row">
-              <span className="machine-detail-label">Maintenance Notes</span>
+              <span className="machine-detail-label">הערות תחזוקה</span>
               <span>{machine.maintenanceNotes || '—'}</span>
             </div>
             <div className="machine-detail-row">
-              <span className="machine-detail-label">Created</span>
-              <span>{new Date(machine.createdAt).toLocaleDateString()}</span>
+              <span className="machine-detail-label">נוצר בתאריך</span>
+              <span>{new Date(machine.createdAt).toLocaleDateString('he-IL')}</span>
             </div>
             <div className="machine-detail-row">
-              <span className="machine-detail-label">Updated</span>
-              <span>{new Date(machine.updatedAt).toLocaleDateString()}</span>
+              <span className="machine-detail-label">עודכן בתאריך</span>
+              <span>{new Date(machine.updatedAt).toLocaleDateString('he-IL')}</span>
             </div>
           </div>
         </div>
 
         <div className="table-actions machine-detail-actions">
           <button className="btn-mark-clean" disabled={savingClean} onClick={handleMarkCleaned}>
-            {savingClean ? 'Saving…' : 'Mark Cleaned'}
+            {savingClean ? 'שומר…' : 'סמן כנוקה'}
           </button>
           <Link className="btn-report-issue" to={`/machines/${id}/report-malfunction`}>
-            Report Malfunction
+            דיווח על תקלה
           </Link>
           {canViewManagerUI && machine.faultStatus === 'fault' && (
             <button className="btn-mark-working" disabled={savingWorking} onClick={handleMarkWorking}>
-              {savingWorking ? 'Saving…' : 'Mark as Working'}
+              {savingWorking ? 'שומר…' : 'סמן כתקין'}
             </button>
           )}
           {canViewManagerUI && (
             <button className="btn-report-issue" onClick={handleToggleActive}>
-              {machine.isActive ? 'Deactivate Machine' : 'Activate Machine'}
+              {machine.isActive ? 'השבתת מכונה' : 'הפעלת מכונה'}
             </button>
           )}
           {canViewManagerUI && (
             <button className="btn-report-issue" onClick={() => setEditing(o => !o)}>
-              {editing ? 'Cancel Edit' : 'Edit Machine'}
+              {editing ? 'ביטול עריכה' : 'עריכת מכונה'}
             </button>
           )}
         </div>
@@ -302,11 +304,11 @@ export default function MachineDetails() {
         {canViewManagerUI && editing && (
           <div className="employee-form">
             <div className="machine-section__header">
-              <span className="machine-section__title">Edit Machine</span>
+              <span className="machine-section__title">עריכת מכונה</span>
             </div>
             <form className="employee-form__body" onSubmit={handleSaveEdit}>
               <div className="employee-form__field">
-                <label className="employee-form__label" htmlFor="m-name">Name</label>
+                <label className="employee-form__label" htmlFor="m-name">שם</label>
                 <input
                   id="m-name"
                   className="employee-form__input"
@@ -316,7 +318,7 @@ export default function MachineDetails() {
                 />
               </div>
               <div className="employee-form__field">
-                <label className="employee-form__label" htmlFor="m-location">Location</label>
+                <label className="employee-form__label" htmlFor="m-location">מיקום</label>
                 <input
                   id="m-location"
                   className="employee-form__input"
@@ -326,7 +328,7 @@ export default function MachineDetails() {
                 />
               </div>
               <div className="employee-form__field">
-                <label className="employee-form__label" htmlFor="m-notes">Maintenance Notes</label>
+                <label className="employee-form__label" htmlFor="m-notes">הערות תחזוקה</label>
                 <input
                   id="m-notes"
                   className="employee-form__input"
@@ -336,7 +338,7 @@ export default function MachineDetails() {
               </div>
               <div className="employee-form__actions">
                 <button type="submit" className="btn-add-employee" disabled={savingEdit}>
-                  {savingEdit ? 'Saving…' : 'Save Changes'}
+                  {savingEdit ? 'שומר…' : 'שמירת שינויים'}
                 </button>
               </div>
             </form>
@@ -345,23 +347,23 @@ export default function MachineDetails() {
 
         <div className="machine-section">
           <div className="machine-section__header">
-            <span className="machine-section__title">Cleaning History</span>
+            <span className="machine-section__title">היסטוריית ניקיון</span>
           </div>
           {details.cleaningHistory.length === 0 ? (
-            <p className="employee-empty">No cleaning history yet.</p>
+            <p className="employee-empty">אין עדיין היסטוריית ניקיון.</p>
           ) : (
             <table className="machine-table">
               <thead>
                 <tr>
-                  <th>Cleaned By</th>
-                  <th>Date</th>
+                  <th>נוקה על ידי</th>
+                  <th>תאריך</th>
                 </tr>
               </thead>
               <tbody>
                 {details.cleaningHistory.map(log => (
                   <tr key={log.id}>
                     <td>{log.cleanedByName}</td>
-                    <td>{new Date(log.cleanedAt).toLocaleString()}</td>
+                    <td>{new Date(log.cleanedAt).toLocaleString('he-IL')}</td>
                   </tr>
                 ))}
               </tbody>
@@ -371,47 +373,47 @@ export default function MachineDetails() {
 
         <div className="machine-section">
           <div className="machine-section__header">
-            <span className="machine-section__title">Malfunction History</span>
-            <span className="machine-section__count">{openReports.length} open</span>
+            <span className="machine-section__title">היסטוריית תקלות</span>
+            <span className="machine-section__count">{openReports.length} פתוחות</span>
           </div>
           {details.malfunctionHistory.length === 0 ? (
-            <p className="employee-empty">No malfunction reports yet.</p>
+            <p className="employee-empty">אין עדיין דיווחי תקלות.</p>
           ) : (
             <table className="machine-table">
               <thead>
                 <tr>
-                  <th>Reported By</th>
-                  <th>Date</th>
-                  <th>Description</th>
-                  <th>Severity</th>
-                  <th>Status</th>
-                  {canViewManagerUI && <th>Actions</th>}
+                  <th>דווח על ידי</th>
+                  <th>תאריך</th>
+                  <th>תיאור</th>
+                  <th>חומרה</th>
+                  <th>סטטוס</th>
+                  {canViewManagerUI && <th>פעולות</th>}
                 </tr>
               </thead>
               <tbody>
                 {details.malfunctionHistory.map(report => (
                   <tr key={report.id}>
                     <td>{report.reportedByName}</td>
-                    <td>{new Date(report.reportedAt).toLocaleString()}</td>
+                    <td>{new Date(report.reportedAt).toLocaleString('he-IL')}</td>
                     <td>
                       {report.description}
                       {report.photoUrl && (
                         <div>
-                          <a href={report.photoUrl} target="_blank" rel="noreferrer">View photo</a>
+                          <a href={report.photoUrl} target="_blank" rel="noreferrer">צפייה בתמונה</a>
                         </div>
                       )}
                       {report.resolutionNotes && (
-                        <div className="machine-location">Resolution: {report.resolutionNotes}</div>
+                        <div className="machine-location">פתרון: {report.resolutionNotes}</div>
                       )}
                     </td>
-                    <td>{report.severity}</td>
+                    <td>{SEVERITY_LABEL[report.severity] ?? report.severity}</td>
                     <td>{REPORT_STATUS_LABEL[report.status]}</td>
                     {canViewManagerUI && (
                       <td>
                         <div className="table-actions">
                           {report.status === 'open' && (
                             <button className="btn-report-issue" onClick={() => handleMarkInProgress(report.id)}>
-                              Mark In Progress
+                              סמן כבטיפול
                             </button>
                           )}
                           {(report.status === 'open' || report.status === 'in_progress') && (
@@ -419,7 +421,7 @@ export default function MachineDetails() {
                               <>
                                 <input
                                   className="employee-form__input"
-                                  placeholder="Resolution notes"
+                                  placeholder="הערות פתרון"
                                   value={resolutionNotes}
                                   onChange={e => setResolutionNotes(e.target.value)}
                                 />
@@ -428,7 +430,7 @@ export default function MachineDetails() {
                                   disabled={savingResolve}
                                   onClick={() => handleResolve(report.id)}
                                 >
-                                  {savingResolve ? 'Saving…' : 'Confirm Resolve'}
+                                  {savingResolve ? 'שומר…' : 'אישור פתרון'}
                                 </button>
                               </>
                             ) : (
@@ -436,7 +438,7 @@ export default function MachineDetails() {
                                 className="btn-mark-working"
                                 onClick={() => { setResolvingId(report.id); setResolutionNotes(''); }}
                               >
-                                Resolve
+                                פתרון
                               </button>
                             )
                           )}

@@ -12,16 +12,32 @@ export type ReportStatus   = 'open' | 'in_progress' | 'resolved' | 'closed';
 // Shared display label for ReportStatus — keeps "in_progress" etc. from ever
 // leaking onto screen as a raw enum value, wherever malfunction status is shown.
 export const REPORT_STATUS_LABEL: Record<ReportStatus, string> = {
-  open: 'Open',
-  in_progress: 'In Progress',
-  resolved: 'Resolved',
-  closed: 'Closed',
+  open: 'פתוח',
+  in_progress: 'בטיפול',
+  resolved: 'נפתר',
+  closed: 'סגור',
 };
 
 // Shown for every mutation blocked for the read-only 'preview' role,
 // both when the frontend intercepts a click before sending anything,
 // and when a request still reaches the server and the RPC guard fires.
-export const PREVIEW_BLOCKED_MESSAGE = 'Read-only preview — changes are disabled.';
+export const PREVIEW_BLOCKED_MESSAGE = 'מצב צפייה בלבד — לא ניתן לבצע שינויים.';
+
+// The backend (RPC guards / RLS / triggers) still raises its error text in
+// English — that surface isn't touched here. This maps the known raw
+// messages it can return to their Hebrew equivalent before they reach the
+// UI, so no English ever leaks through even when a request reaches the server.
+function translateBackendError(message: string): string {
+  if (message.includes('Insufficient stock')) return 'אין מספיק מלאי.';
+  if (message.includes('Read-only preview')) return PREVIEW_BLOCKED_MESSAGE;
+  if (message.includes('Not authenticated')) return 'לא מחוברים למערכת.';
+  if (message.includes('Not authorized')) return 'אין לכם הרשאה לבצע פעולה זו.';
+  if (message.includes('Machine does not exist')) return 'המכונה אינה קיימת.';
+  if (message.includes('Task title is required')) return 'יש למלא כותרת למשימה.';
+  if (message.includes('Assigned employee not found')) return 'העובד שהוקצה לא נמצא.';
+  if (message.includes('cleaning task must be linked')) return 'משימת ניקיון חייבת להיות מקושרת למכונה.';
+  return message;
+}
 
 // ---------------------------------------------------------------------------
 // Database shape — used by createClient<Database> for end-to-end type safety
@@ -369,7 +385,7 @@ export async function getEmployees(options: GetEmployeesOptions = {}): Promise<G
 
       if (result.error) {
         if (import.meta.env.DEV) console.error('[oboost] get_preview_employee_directory error:', result.error.message);
-        return { employees: [], error: 'Could not load employees. Please try again.' };
+        return { employees: [], error: 'לא ניתן היה לטעון את העובדים. אנא נסו שוב.' };
       }
 
       return {
@@ -415,7 +431,7 @@ export async function getEmployees(options: GetEmployeesOptions = {}): Promise<G
 
   if (result.error) {
     if (import.meta.env.DEV) console.error('[oboost] Supabase employees error:', result.error.message);
-    return { employees: [], error: withDevDetail('Could not load employees. Please try again.', result.error.message) };
+    return { employees: [], error: withDevDetail('לא ניתן היה לטעון את העובדים. אנא נסו שוב.', result.error.message) };
   }
   if (!data || data.length === 0) {
     return { employees: [], error: null };
@@ -450,7 +466,7 @@ export interface CreateEmployeeInput {
 
 export async function createEmployee(
   input: CreateEmployeeInput
-): Promise<{ error: string | null }> {
+): Promise<{ employeeId: string | null; error: string | null }> {
   const { data, error } = await supabase.auth.signUp({
     email: input.email,
     password: input.password,
@@ -461,9 +477,9 @@ export async function createEmployee(
 
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] createEmployee signUp error:', error.message);
-    return { error: 'Could not create the employee account. Please check the details and try again.' };
+    return { employeeId: null, error: 'לא ניתן היה ליצור את חשבון העובד. אנא בדקו את הפרטים ונסו שוב.' };
   }
-  if (!data.user) return { error: 'Could not create the employee account. Please try again.' };
+  if (!data.user) return { employeeId: null, error: 'לא ניתן היה ליצור את חשבון העובד. אנא נסו שוב.' };
 
   const { error: empError } = await supabase.from('employees').insert({
     employee_id:  data.user.id,
@@ -476,12 +492,44 @@ export async function createEmployee(
   });
   if (empError) {
     if (import.meta.env.DEV) console.error('[oboost] createEmployee insert error:', empError.message);
-    return { error: 'Account created, but saving employee details failed. Please try again.' };
+    return { employeeId: null, error: 'החשבון נוצר, אך שמירת פרטי העובד נכשלה. אנא נסו שוב.' };
   }
 
   // No role assignment here: handle_new_user already creates the profile
   // with the default 'employee' role, and Add Employee must never be able
   // to create a manager.
+  return { employeeId: data.user.id, error: null };
+}
+
+export interface UpdateEmployeeFields {
+  firstName?:  string;
+  lastName?:   string;
+  phoneNumber?: string;
+  jobTitle?:   string;
+  hireDate?:   string | null;
+}
+
+// Editable fields only — email is deliberately excluded: it's tied to the
+// auth user's login identity (auth.users.email), and changing it here
+// would desync employees.email from the real sign-in address without
+// actually updating it, since that requires a separate supabase.auth
+// email-change flow this app doesn't implement.
+export async function updateEmployee(
+  employeeId: string,
+  fields: UpdateEmployeeFields
+): Promise<{ error: string | null }> {
+  const payload: Database['public']['Tables']['employees']['Update'] = {};
+  if (fields.firstName !== undefined) payload.first_name = fields.firstName;
+  if (fields.lastName !== undefined) payload.last_name = fields.lastName;
+  if (fields.phoneNumber !== undefined) payload.phone_number = fields.phoneNumber;
+  if (fields.jobTitle !== undefined) payload.job_title = fields.jobTitle;
+  if (fields.hireDate !== undefined) payload.hire_date = fields.hireDate;
+
+  const { error } = await (supabase.from('employees') as any).update(payload).eq('employee_id', employeeId);
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] updateEmployee error:', error.message);
+    return { error: 'לא ניתן היה לעדכן את פרטי העובד. אנא נסו שוב.' };
+  }
   return { error: null };
 }
 
@@ -506,7 +554,7 @@ export async function getMachines(): Promise<GetMachinesResult> {
 
   if (result.error) {
     if (import.meta.env.DEV) console.error('[oboost] Supabase machines error:', result.error.message);
-    return { machines: [], error: 'Could not load machines. Please try again.' };
+    return { machines: [], error: 'לא ניתן היה לטעון את המכונות. אנא נסו שוב.' };
   }
   if (!data || data.length === 0) {
     return { machines: [], error: null };
@@ -561,7 +609,7 @@ export async function markMachineWorking(machineId: string): Promise<{ error: st
 
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] markMachineWorking error:', error.message);
-    return { error: 'Could not update the machine. Please try again.' };
+    return { error: 'לא ניתן היה לעדכן את המכונה. אנא נסו שוב.' };
   }
   return { error: null };
 }
@@ -573,8 +621,8 @@ export async function markMachineCleaned(machineId: string): Promise<{ error: st
     if (import.meta.env.DEV) {
       console.error('[oboost] markMachineCleaned error:', error.message);
     }
-    if (error.message.includes('Read-only preview')) return { error: error.message };
-    return { error: 'Could not mark the machine as cleaned. Please try again.' };
+    if (error.message.includes('Read-only preview')) return { error: translateBackendError(error.message) };
+    return { error: 'לא ניתן היה לסמן את המכונה כנוקתה. אנא נסו שוב.' };
   }
   return { error: null };
 }
@@ -615,7 +663,7 @@ export async function getMachineDetails(
 
   if (machineRes.error || !machineRes.data) {
     if (import.meta.env.DEV && machineRes.error) console.error('[oboost] getMachineDetails error:', machineRes.error.message);
-    return { details: null, error: 'Machine not found, or you do not have access to it.' };
+    return { details: null, error: 'המכונה לא נמצאה, או שאין לכם גישה אליה.' };
   }
 
   type MachineRow = Database['public']['Tables']['machines']['Row'];
@@ -712,7 +760,7 @@ export async function updateMachine(
   const { error } = await (supabase.from('machines') as any).update(payload).eq('id', machineId);
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] updateMachine error:', error.message);
-    return { error: 'Could not update the machine. Please try again.' };
+    return { error: 'לא ניתן היה לעדכן את המכונה. אנא נסו שוב.' };
   }
   return { error: null };
 }
@@ -750,7 +798,7 @@ export async function createMachine(input: CreateMachineInput): Promise<{ id: st
     const devDetail = error
       ? `message="${error.message}" details="${error.details}" hint="${error.hint}" code="${error.code}"`
       : 'insert succeeded but no row was returned';
-    return { id: null, error: withDevDetail('Could not create the machine. Please try again.', devDetail) };
+    return { id: null, error: withDevDetail('לא ניתן היה ליצור את המכונה. אנא נסו שוב.', devDetail) };
   }
   return { id: (data as { id: string }).id, error: null };
 }
@@ -762,7 +810,7 @@ export async function assignEmployeeToMachine(machineId: string, userId: string)
   } as never);
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] assignEmployeeToMachine error:', error.message);
-    return { error: 'Could not assign this employee. Please try again.' };
+    return { error: 'לא ניתן היה לשייך את העובד. אנא נסו שוב.' };
   }
   return { error: null };
 }
@@ -774,7 +822,7 @@ export async function unassignEmployeeFromMachine(machineId: string, userId: str
   } as never);
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] unassignEmployeeFromMachine error:', error.message);
-    return { error: 'Could not unassign this employee. Please try again.' };
+    return { error: 'לא ניתן היה לבטל את שיוך העובד. אנא נסו שוב.' };
   }
   return { error: null };
 }
@@ -789,7 +837,7 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 function validateImageFile(file: File): string | null {
   if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    return 'Please choose a JPEG, PNG, WEBP, or GIF image.';
+    return 'יש לבחור תמונה מסוג JPEG, PNG, WEBP או GIF.';
   }
   if (file.size > MAX_IMAGE_BYTES) {
     return 'Image must be smaller than 5MB.';
@@ -817,10 +865,10 @@ export async function uploadMachineImage(
   if (validationError) return { url: null, error: validationError };
 
   const path = `machines/${machineId}/${safeFileName(file)}`;
-  const { error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file);
+  const { error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file, { contentType: file.type });
   if (uploadError) {
     if (import.meta.env.DEV) console.error('[oboost] uploadMachineImage error:', uploadError.message);
-    return { url: null, error: withDevDetail('Could not upload the image. Please try again.', uploadError.message) };
+    return { url: null, error: withDevDetail('לא ניתן היה להעלות את התמונה. אנא נסו שוב.', uploadError.message) };
   }
 
   const { data } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path);
@@ -832,7 +880,7 @@ export async function uploadMachineImage(
     if (import.meta.env.DEV) console.error('[oboost] uploadMachineImage save error:', imageSaveError.message);
     return {
       url: null,
-      error: withDevDetail('Image uploaded, but saving it to the machine failed. Please try again.', imageSaveError.message),
+      error: withDevDetail('התמונה הועלתה, אך שמירתה במכונה נכשלה. אנא נסו שוב.', imageSaveError.message),
     };
   }
 
@@ -847,10 +895,10 @@ export async function uploadEmployeePhoto(
   if (validationError) return { url: null, error: validationError };
 
   const path = `employees/${employeeId}/${safeFileName(file)}`;
-  const { error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file);
+  const { error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file, { contentType: file.type });
   if (uploadError) {
     if (import.meta.env.DEV) console.error('[oboost] uploadEmployeePhoto error:', uploadError.message);
-    return { url: null, error: withDevDetail('Could not upload the photo. Please try again.', uploadError.message) };
+    return { url: null, error: withDevDetail('לא ניתן היה להעלות את התמונה. אנא נסו שוב.', uploadError.message) };
   }
 
   const { data } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path);
@@ -863,7 +911,7 @@ export async function uploadEmployeePhoto(
     if (import.meta.env.DEV) console.error('[oboost] uploadEmployeePhoto save error:', saveError.message);
     return {
       url: null,
-      error: withDevDetail('Photo uploaded, but saving it to the employee failed. Please try again.', saveError.message),
+      error: withDevDetail('התמונה הועלתה, אך שמירתה בפרטי העובד נכשלה. אנא נסו שוב.', saveError.message),
     };
   }
 
@@ -876,13 +924,13 @@ export async function uploadMalfunctionPhoto(file: File): Promise<{ url: string 
 
   const { data: userData } = await supabase.auth.getUser();
   const uid = userData.user?.id;
-  if (!uid) return { url: null, error: 'Not authenticated.' };
+  if (!uid) return { url: null, error: 'לא מחוברים למערכת.' };
 
   const path = `malfunctions/${uid}/${safeFileName(file)}`;
-  const { error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file);
+  const { error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file, { contentType: file.type });
   if (uploadError) {
     if (import.meta.env.DEV) console.error('[oboost] uploadMalfunctionPhoto error:', uploadError.message);
-    return { url: null, error: withDevDetail('Could not upload the photo. Please try again.', uploadError.message) };
+    return { url: null, error: withDevDetail('לא ניתן היה להעלות את התמונה. אנא נסו שוב.', uploadError.message) };
   }
 
   const { data } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path);
@@ -927,9 +975,9 @@ export async function reportMachineMalfunction(input: ReportMalfunctionInput): P
       || error.message.includes('Machine does not exist')
       || error.message.includes('Read-only preview')
     ) {
-      return { error: error.message };
+      return { error: translateBackendError(error.message) };
     }
-    return { error: withDevDetail('Could not report the malfunction. Please try again.', error.message) };
+    return { error: withDevDetail('לא ניתן היה לדווח על התקלה. אנא נסו שוב.', error.message) };
   }
   return { error: null };
 }
@@ -942,7 +990,7 @@ export async function markMaintenanceReportInProgress(reportId: string): Promise
 
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] markMaintenanceReportInProgress error:', error.message);
-    return { error: 'Could not update the report. Please try again.' };
+    return { error: 'לא ניתן היה לעדכן את הדיווח. אנא נסו שוב.' };
   }
   return { error: null };
 }
@@ -958,7 +1006,7 @@ export async function resolveMaintenanceReport(
 
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] resolveMaintenanceReport error:', error.message);
-    return { error: 'Could not resolve the report. Please try again.' };
+    return { error: 'לא ניתן היה לפתור את הדיווח. אנא נסו שוב.' };
   }
   return { error: null };
 }
@@ -994,7 +1042,7 @@ export async function getOrangeInventory(limit?: number): Promise<{ data: Orange
       if (stockRes.error) console.error('[oboost] getOrangeInventory stock error:', stockRes.error.message);
       if (itemRes.error) console.error('[oboost] getOrangeInventory item error:', itemRes.error.message);
     }
-    return { data: null, error: 'Could not load inventory. Please try again.' };
+    return { data: null, error: 'לא ניתן היה לטעון את המלאי. אנא נסו שוב.' };
   }
 
   const itemId = (itemRes.data as { id: string }).id;
@@ -1020,7 +1068,7 @@ export async function getOrangeInventory(limit?: number): Promise<{ data: Orange
 
   if (txnRes.error) {
     if (import.meta.env.DEV) console.error('[oboost] getOrangeInventory transactions error:', txnRes.error.message);
-    return { data: null, error: 'Could not load inventory. Please try again.' };
+    return { data: null, error: 'לא ניתן היה לטעון את המלאי. אנא נסו שוב.' };
   }
 
   const userIds = Array.from(new Set(rows.map(r => r.recorded_by)));
@@ -1051,7 +1099,7 @@ export async function recordOrangeDelivery(quantity: number, notes: string): Pro
   const { error } = await supabase.rpc('record_orange_delivery', { p_quantity: quantity, p_notes: notes } as never);
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] recordOrangeDelivery error:', error.message);
-    return { error: 'Could not record the delivery. Please try again.' };
+    return { error: 'לא ניתן היה לרשום את הקבלה. אנא נסו שוב.' };
   }
   return { error: null };
 }
@@ -1060,8 +1108,8 @@ export async function recordOrangeWithdrawal(quantity: number, notes: string): P
   const { error } = await supabase.rpc('record_orange_withdrawal', { p_quantity: quantity, p_notes: notes } as never);
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] recordOrangeWithdrawal error:', error.message);
-    if (error.message.includes('Insufficient stock') || error.message.includes('Read-only preview')) return { error: error.message };
-    return { error: 'Could not record the withdrawal. Please try again.' };
+    if (error.message.includes('Insufficient stock') || error.message.includes('Read-only preview')) return { error: translateBackendError(error.message) };
+    return { error: 'לא ניתן היה לרשום את המשיכה. אנא נסו שוב.' };
   }
   return { error: null };
 }
@@ -1070,7 +1118,7 @@ export async function recordOrangeAdjustment(quantity: number, notes: string): P
   const { error } = await supabase.rpc('record_orange_adjustment', { p_quantity: quantity, p_notes: notes } as never);
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] recordOrangeAdjustment error:', error.message);
-    return { error: 'Could not record the adjustment. Please try again.' };
+    return { error: 'לא ניתן היה לרשום את ההתאמה. אנא נסו שוב.' };
   }
   return { error: null };
 }
@@ -1100,7 +1148,7 @@ export async function getSpareParts(): Promise<{ parts: SparePartRecord[]; error
 
   if (itemsRes.error) {
     if (import.meta.env.DEV) console.error('[oboost] getSpareParts error:', itemsRes.error.message);
-    return { parts: [], error: 'Could not load spare parts. Please try again.' };
+    return { parts: [], error: 'לא ניתן היה לטעון את חלקי החילוף. אנא נסו שוב.' };
   }
   if (items.length === 0) {
     return { parts: [], error: null };
@@ -1139,7 +1187,7 @@ export async function createSparePart(input: CreateSparePartInput): Promise<{ er
 
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] createSparePart error:', error.message);
-    return { error: 'Could not create the spare part. Please try again.' };
+    return { error: 'לא ניתן היה ליצור את חלק החילוף. אנא נסו שוב.' };
   }
   return { error: null };
 }
@@ -1148,7 +1196,7 @@ export async function setSparePartActive(id: string, isActive: boolean): Promise
   const { error } = await supabase.from('inventory_items').update({ is_active: isActive }).eq('id', id);
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] setSparePartActive error:', error.message);
-    return { error: 'Could not update the spare part. Please try again.' };
+    return { error: 'לא ניתן היה לעדכן את חלק החילוף. אנא נסו שוב.' };
   }
   return { error: null };
 }
@@ -1170,7 +1218,7 @@ export async function getSparePartTransactions(limit?: number): Promise<{ transa
 
   if (itemsRes.error) {
     if (import.meta.env.DEV) console.error('[oboost] getSparePartTransactions items error:', itemsRes.error.message);
-    return { transactions: [], error: 'Could not load spare parts history. Please try again.' };
+    return { transactions: [], error: 'לא ניתן היה לטעון את היסטוריית חלקי החילוף. אנא נסו שוב.' };
   }
   if (items.length === 0) {
     return { transactions: [], error: null };
@@ -1200,7 +1248,7 @@ export async function getSparePartTransactions(limit?: number): Promise<{ transa
 
   if (txnRes.error) {
     if (import.meta.env.DEV) console.error('[oboost] getSparePartTransactions error:', txnRes.error.message);
-    return { transactions: [], error: 'Could not load spare parts history. Please try again.' };
+    return { transactions: [], error: 'לא ניתן היה לטעון את היסטוריית חלקי החילוף. אנא נסו שוב.' };
   }
 
   const userIds = Array.from(new Set(rows.map(r => r.recorded_by)));
@@ -1233,7 +1281,7 @@ export async function recordSparePartDelivery(itemId: string, quantity: number, 
   } as never);
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] recordSparePartDelivery error:', error.message);
-    return { error: 'Could not record the delivery. Please try again.' };
+    return { error: 'לא ניתן היה לרשום את הקבלה. אנא נסו שוב.' };
   }
   return { error: null };
 }
@@ -1246,8 +1294,8 @@ export async function recordSparePartWithdrawal(itemId: string, quantity: number
   } as never);
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] recordSparePartWithdrawal error:', error.message);
-    if (error.message.includes('Insufficient stock') || error.message.includes('Read-only preview')) return { error: error.message };
-    return { error: 'Could not record the withdrawal. Please try again.' };
+    if (error.message.includes('Insufficient stock') || error.message.includes('Read-only preview')) return { error: translateBackendError(error.message) };
+    return { error: 'לא ניתן היה לרשום את המשיכה. אנא נסו שוב.' };
   }
   return { error: null };
 }
@@ -1260,7 +1308,7 @@ export async function recordSparePartAdjustment(itemId: string, quantity: number
   } as never);
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] recordSparePartAdjustment error:', error.message);
-    return { error: 'Could not record the adjustment. Please try again.' };
+    return { error: 'לא ניתן היה לרשום את ההתאמה. אנא נסו שוב.' };
   }
   return { error: null };
 }
@@ -1317,7 +1365,7 @@ export async function getTasks(limit?: number): Promise<{ tasks: TaskRecord[]; e
 
   if (tasksRes.error) {
     if (import.meta.env.DEV) console.error('[oboost] getTasks error:', tasksRes.error.message);
-    return { tasks: [], error: withDevDetail('Could not load tasks. Please try again.', tasksRes.error.message) };
+    return { tasks: [], error: withDevDetail('לא ניתן היה לטעון את המשימות. אנא נסו שוב.', tasksRes.error.message) };
   }
   if (rows.length === 0) {
     return { tasks: [], error: null };
@@ -1388,9 +1436,9 @@ export async function createTask(input: CreateTaskInput): Promise<{ error: strin
       || error.message.includes('Assigned employee not found')
       || error.message.includes('cleaning task must be linked')
     ) {
-      return { error: error.message };
+      return { error: translateBackendError(error.message) };
     }
-    return { error: withDevDetail('Could not create the task. Please try again.', error.message) };
+    return { error: withDevDetail('לא ניתן היה ליצור את המשימה. אנא נסו שוב.', error.message) };
   }
   return { error: null };
 }
@@ -1408,8 +1456,8 @@ export async function completeTask(
 
   if (error) {
     if (import.meta.env.DEV) console.error('[oboost] completeTask error:', error.message);
-    if (error.message.includes('Read-only preview')) return { error: error.message };
-    return { error: 'Could not complete the task. Please try again.' };
+    if (error.message.includes('Read-only preview')) return { error: translateBackendError(error.message) };
+    return { error: 'לא ניתן היה להשלים את המשימה. אנא נסו שוב.' };
   }
   return { error: null };
 }
@@ -1420,13 +1468,13 @@ export async function uploadTaskCompletionPhoto(file: File): Promise<{ url: stri
 
   const { data: userData } = await supabase.auth.getUser();
   const uid = userData.user?.id;
-  if (!uid) return { url: null, error: 'Not authenticated.' };
+  if (!uid) return { url: null, error: 'לא מחוברים למערכת.' };
 
   const path = `tasks/${uid}/${safeFileName(file)}`;
-  const { error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file);
+  const { error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file, { contentType: file.type });
   if (uploadError) {
     if (import.meta.env.DEV) console.error('[oboost] uploadTaskCompletionPhoto error:', uploadError.message);
-    return { url: null, error: withDevDetail('Could not upload the photo. Please try again.', uploadError.message) };
+    return { url: null, error: withDevDetail('לא ניתן היה להעלות את התמונה. אנא נסו שוב.', uploadError.message) };
   }
 
   const { data } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path);
@@ -1460,7 +1508,7 @@ export async function getCleaningHistory(mineOnly: boolean, limit?: number): Pro
   if (mineOnly) {
     const { data: userData } = await supabase.auth.getUser();
     const uid = userData.user?.id;
-    if (!uid) return { records: [], error: 'Not authenticated.' };
+    if (!uid) return { records: [], error: 'לא מחוברים למערכת.' };
     query = query.eq('cleaned_by', uid);
   }
   if (limit !== undefined) query = query.limit(limit);
@@ -1471,7 +1519,7 @@ export async function getCleaningHistory(mineOnly: boolean, limit?: number): Pro
 
   if (logsRes.error) {
     if (import.meta.env.DEV) console.error('[oboost] getCleaningHistory error:', logsRes.error.message);
-    return { records: [], error: 'Could not load cleaning history. Please try again.' };
+    return { records: [], error: 'לא ניתן היה לטעון את היסטוריית הניקיון. אנא נסו שוב.' };
   }
   if (rows.length === 0) {
     return { records: [], error: null };
@@ -1524,7 +1572,7 @@ export async function getMalfunctionHistory(mineOnly: boolean, limit?: number): 
   if (mineOnly) {
     const { data: userData } = await supabase.auth.getUser();
     const uid = userData.user?.id;
-    if (!uid) return { records: [], error: 'Not authenticated.' };
+    if (!uid) return { records: [], error: 'לא מחוברים למערכת.' };
     query = query.eq('reported_by', uid);
   }
   if (limit !== undefined) query = query.limit(limit);
@@ -1547,7 +1595,7 @@ export async function getMalfunctionHistory(mineOnly: boolean, limit?: number): 
 
   if (reportsRes.error) {
     if (import.meta.env.DEV) console.error('[oboost] getMalfunctionHistory error:', reportsRes.error.message);
-    return { records: [], error: 'Could not load malfunction history. Please try again.' };
+    return { records: [], error: 'לא ניתן היה לטעון את היסטוריית התקלות. אנא נסו שוב.' };
   }
   if (rows.length === 0) {
     return { records: [], error: null };

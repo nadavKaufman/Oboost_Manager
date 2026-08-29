@@ -86,9 +86,9 @@ export default function ReportMalfunction() {
 
   if (status === 'loading') {
     return (
-      <DashboardLayout title="Report Malfunction" currentUser={FALLBACK_USER}>
+      <DashboardLayout title="דיווח על תקלה" currentUser={FALLBACK_USER}>
         <div className="dashboard-page">
-          <p className="employee-empty">Loading machine…</p>
+          <p className="employee-empty">טוען מכונה…</p>
         </div>
       </DashboardLayout>
     );
@@ -96,23 +96,23 @@ export default function ReportMalfunction() {
 
   if (status === 'error') {
     return (
-      <DashboardLayout title="Report Malfunction" currentUser={FALLBACK_USER}>
+      <DashboardLayout title="דיווח על תקלה" currentUser={FALLBACK_USER}>
         <div className="dashboard-page">
           <div className="alert-banner">
             <span className="alert-banner__dot" />
-            This machine could not be found, or you do not have access to it.
+            המכונה לא נמצאה, או שאין לכם גישה אליה.
           </div>
-          <Link to="/machines" className="btn-mark-clean">← Back to Machines</Link>
+          <Link to="/machines" className="btn-mark-clean">→ חזרה למכונות</Link>
         </div>
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout title="Report Malfunction" currentUser={FALLBACK_USER}>
+    <DashboardLayout title="דיווח על תקלה" currentUser={FALLBACK_USER}>
       <div className="dashboard-page">
         <div className="page-header">
-          <h2 className="page-header__title">Report Malfunction</h2>
+          <h2 className="page-header__title">דיווח על תקלה</h2>
           <p className="page-header__subtitle">
             {machineName}{machineLocation ? ` — ${machineLocation}` : ''}
           </p>
@@ -128,7 +128,7 @@ export default function ReportMalfunction() {
         <div className="employee-form">
           <form className="employee-form__body" onSubmit={handleSubmit}>
             <div className="employee-form__field">
-              <label className="employee-form__label" htmlFor="r-desc">Description</label>
+              <label className="employee-form__label" htmlFor="r-desc">תיאור</label>
               <input
                 id="r-desc"
                 className="employee-form__input"
@@ -138,7 +138,7 @@ export default function ReportMalfunction() {
               />
             </div>
             <div className="employee-form__field">
-              <label className="employee-form__label" htmlFor="r-type">Malfunction Type (optional)</label>
+              <label className="employee-form__label" htmlFor="r-type">סוג התקלה (אופציונלי)</label>
               <input
                 id="r-type"
                 className="employee-form__input"
@@ -147,21 +147,21 @@ export default function ReportMalfunction() {
               />
             </div>
             <div className="employee-form__field">
-              <label className="employee-form__label" htmlFor="r-severity">Severity</label>
+              <label className="employee-form__label" htmlFor="r-severity">חומרה</label>
               <select
                 id="r-severity"
                 className="employee-form__select"
                 value={form.severity}
                 onChange={e => setForm(prev => ({ ...prev, severity: e.target.value as ReportSeverity }))}
               >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
+                <option value="low">נמוכה</option>
+                <option value="medium">בינונית</option>
+                <option value="high">גבוהה</option>
+                <option value="critical">קריטית</option>
               </select>
             </div>
             <div className="employee-form__field">
-              <label className="employee-form__label" htmlFor="r-photo">Photo (optional)</label>
+              <label className="employee-form__label" htmlFor="r-photo">תמונה (אופציונלי)</label>
               <input
                 id="r-photo"
                 type="file"
@@ -175,9 +175,9 @@ export default function ReportMalfunction() {
             </div>
             <div className="employee-form__actions">
               <button type="submit" className="btn-add-employee" disabled={submitting}>
-                {submitting ? 'Reporting…' : 'Submit Report'}
+                {submitting ? 'שולח…' : 'שליחת דיווח'}
               </button>
-              <Link to={`/machines/${id}`} className="btn-report-issue">Cancel</Link>
+              <Link to={`/machines/${id}`} className="btn-report-issue">ביטול</Link>
             </div>
           </form>
         </div>

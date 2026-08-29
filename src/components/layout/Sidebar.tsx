@@ -9,6 +9,9 @@ interface Props {
   userRole: UserRole;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
+  onLogout?: () => void;
 }
 
 interface NavItem {
@@ -17,22 +20,28 @@ interface NavItem {
   path: string;
 }
 
+const ROLE_LABEL: Record<UserRole, string> = {
+  manager: 'מנהל',
+  employee: 'עובד',
+  preview: 'צפייה בלבד',
+};
+
 // Machines icon carries the OBoost orange accent, unlike every other
 // nav icon which just inherits the item's current text color.
 const MANAGER_NAV_ITEMS: NavItem[] = [
-  { icon: '▦', label: 'Overview', path: '/dashboard' },
-  { icon: <MachineIcon className="sidebar__nav-icon--accent" />, label: 'Machines', path: '/machines' },
-  { icon: '👥', label: 'Employees', path: '/employees' },
-  { icon: '📦', label: 'Inventory', path: '/inventory' },
-  { icon: '☰', label: 'Reports', path: '/reports' },
-  { icon: '✓', label: 'Tasks', path: '/tasks' },
+  { icon: '🏠', label: 'ראשי', path: '/dashboard' },
+  { icon: <MachineIcon className="sidebar__nav-icon--accent" />, label: 'מכונות', path: '/machines' },
+  { icon: '👥', label: 'עובדים', path: '/employees' },
+  { icon: '📦', label: 'מלאי', path: '/inventory' },
+  { icon: '☰', label: 'דוחות', path: '/reports' },
+  { icon: '✓', label: 'משימות', path: '/tasks' },
 ];
 
 const EMPLOYEE_NAV_ITEMS: NavItem[] = [
-  { icon: <MachineIcon className="sidebar__nav-icon--accent" />, label: 'Machines', path: '/my-machines' },
-  { icon: '📦', label: 'Inventory', path: '/inventory' },
-  { icon: '✓', label: 'My Tasks', path: '/my-tasks' },
-  { icon: '📋', label: 'My Activity', path: '/my-activity' },
+  { icon: <MachineIcon className="sidebar__nav-icon--accent" />, label: 'מכונות', path: '/my-machines' },
+  { icon: '📦', label: 'מלאי', path: '/inventory' },
+  { icon: '✓', label: 'המשימות שלי', path: '/my-tasks' },
+  { icon: '📋', label: 'הפעילות שלי', path: '/my-activity' },
 ];
 
 // Path-prefix match so sub-routes (e.g. /machines/:id, /machines/:id/report-malfunction)
@@ -42,7 +51,16 @@ function isActivePath(pathname: string, itemPath: string): boolean {
   return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
 }
 
-export default function Sidebar({ open, onClose, userRole, collapsed, onToggleCollapse }: Props) {
+export default function Sidebar({
+  open,
+  onClose,
+  userRole,
+  collapsed,
+  onToggleCollapse,
+  theme,
+  onToggleTheme,
+  onLogout,
+}: Props) {
   const location = useLocation();
   // Preview is a read-only stand-in for the manager view, so it gets
   // the same nav items — every one of its actions is blocked further
@@ -52,7 +70,7 @@ export default function Sidebar({ open, onClose, userRole, collapsed, onToggleCo
   return (
     <aside
       className={`sidebar${open ? ' open' : ''}${collapsed ? ' sidebar--collapsed' : ''}`}
-      aria-label="Sidebar"
+      aria-label="תפריט ניווט צדדי"
     >
       <div className="sidebar__header">
         <Link to="/" className="sidebar__logo" onClick={onClose}>
@@ -62,15 +80,15 @@ export default function Sidebar({ open, onClose, userRole, collapsed, onToggleCo
           type="button"
           className="sidebar__collapse-btn"
           onClick={onToggleCollapse}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'הרחבת סרגל הצד' : 'כיווץ סרגל הצד'}
           aria-pressed={collapsed}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={collapsed ? 'הרחבת סרגל הצד' : 'כיווץ סרגל הצד'}
         >
-          {collapsed ? '»' : '«'}
+          {collapsed ? '«' : '»'}
         </button>
       </div>
 
-      <p className="sidebar__section-label">Operations</p>
+      <p className="sidebar__section-label">תפעול</p>
 
       <nav className="sidebar__nav">
         {navItems.map(item => {
@@ -90,6 +108,29 @@ export default function Sidebar({ open, onClose, userRole, collapsed, onToggleCo
           );
         })}
       </nav>
+
+      <div className="sidebar__footer">
+        <div className="sidebar__footer-row">
+          <div className="topbar__role-badge">
+            <span className="topbar__role-dot" />
+            <span className="sidebar__footer-label">{ROLE_LABEL[userRole]}</span>
+          </div>
+          <button
+            type="button"
+            className="topbar__theme-toggle"
+            onClick={onToggleTheme}
+            aria-label={theme === 'dark' ? 'מעבר למצב בהיר' : 'מעבר למצב כהה'}
+            title={theme === 'dark' ? 'מעבר למצב בהיר' : 'מעבר למצב כהה'}
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+        </div>
+        {onLogout && (
+          <button className="topbar__logout sidebar__footer-logout" onClick={onLogout}>
+            <span className="sidebar__footer-label">התנתקות</span>
+          </button>
+        )}
+      </div>
     </aside>
   );
 }

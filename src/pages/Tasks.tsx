@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import CleaningTaskBadge from '../components/dashboard/CleaningTaskBadge';
+import CollapsibleSection from '../components/dashboard/CollapsibleSection';
 import {
   getTasks,
   createTask,
@@ -75,11 +76,11 @@ export default function Tasks() {
     setActionError(null);
     setSuccess(null);
     if (!form.title.trim() || !form.assignedTo) {
-      setActionError('Title and assigned employee are required.');
+      setActionError('יש למלא כותרת ולבחור עובד מוקצה.');
       return;
     }
     if (form.taskType === 'cleaning' && !form.machineId) {
-      setActionError('A cleaning task must have a machine selected.');
+      setActionError('במשימת ניקיון יש לבחור מכונה.');
       return;
     }
     setSubmitting(true);
@@ -96,7 +97,7 @@ export default function Tasks() {
       setActionError(error);
     } else {
       setForm(EMPTY_FORM);
-      setSuccess('Task created.');
+      setSuccess('המשימה נוצרה.');
       await load();
     }
   }
@@ -104,11 +105,11 @@ export default function Tasks() {
   const visibleTasks = filterEmployee ? tasks.filter(t => t.assignedToId === filterEmployee) : tasks;
 
   return (
-    <DashboardLayout title="Tasks" currentUser={FALLBACK_USER}>
+    <DashboardLayout title="משימות" currentUser={FALLBACK_USER}>
       <div className="dashboard-page">
         <div className="page-header">
-          <h2 className="page-header__title">Tasks</h2>
-          <p className="page-header__subtitle">Assign and track work for your team.</p>
+          <h2 className="page-header__title">משימות</h2>
+          <p className="page-header__subtitle">הקצאה ומעקב אחר עבודת הצוות שלכם.</p>
         </div>
 
         {actionError && (
@@ -118,13 +119,13 @@ export default function Tasks() {
           </div>
         )}
 
-        <div className="employee-form">
+        <div className="employee-form create-task-form">
           <div className="machine-section__header">
-            <span className="machine-section__title">Create Task</span>
+            <span className="machine-section__title">יצירת משימה</span>
           </div>
           <form className="employee-form__body" onSubmit={handleCreate}>
             <div className="employee-form__field">
-              <label className="employee-form__label" htmlFor="task-title">Title</label>
+              <label className="employee-form__label" htmlFor="task-title">כותרת</label>
               <input
                 id="task-title"
                 className="employee-form__input"
@@ -134,7 +135,7 @@ export default function Tasks() {
               />
             </div>
             <div className="employee-form__field">
-              <label className="employee-form__label" htmlFor="task-desc">Description (optional)</label>
+              <label className="employee-form__label" htmlFor="task-desc">תיאור (אופציונלי)</label>
               <input
                 id="task-desc"
                 className="employee-form__input"
@@ -143,7 +144,7 @@ export default function Tasks() {
               />
             </div>
             <div className="employee-form__field">
-              <label className="employee-form__label" htmlFor="task-emp">Assign To</label>
+              <label className="employee-form__label" htmlFor="task-emp">הקצאה לעובד</label>
               <select
                 id="task-emp"
                 className="employee-form__select"
@@ -151,7 +152,7 @@ export default function Tasks() {
                 onChange={e => setForm(prev => ({ ...prev, assignedTo: e.target.value }))}
                 required
               >
-                <option value="">Select an employee…</option>
+                <option value="">בחרו עובד…</option>
                 {employees.map(emp => (
                   <option key={emp.employee_id} value={emp.employee_id}>
                     {`${emp.first_name} ${emp.last_name}`.trim()}
@@ -160,20 +161,20 @@ export default function Tasks() {
               </select>
             </div>
             <div className="employee-form__field">
-              <label className="employee-form__label" htmlFor="task-type">Task Type</label>
+              <label className="employee-form__label" htmlFor="task-type">סוג משימה</label>
               <select
                 id="task-type"
                 className="employee-form__select"
                 value={form.taskType}
                 onChange={e => setForm(prev => ({ ...prev, taskType: e.target.value as TaskType }))}
               >
-                <option value="general">General</option>
-                <option value="cleaning">Cleaning</option>
+                <option value="general">כללי</option>
+                <option value="cleaning">ניקיון</option>
               </select>
             </div>
             <div className="employee-form__field">
               <label className="employee-form__label" htmlFor="task-machine">
-                Machine{form.taskType === 'cleaning' ? '' : ' (optional)'}
+                מכונה{form.taskType === 'cleaning' ? '' : ' (אופציונלי)'}
               </label>
               <select
                 id="task-machine"
@@ -182,14 +183,14 @@ export default function Tasks() {
                 onChange={e => setForm(prev => ({ ...prev, machineId: e.target.value }))}
                 required={form.taskType === 'cleaning'}
               >
-                <option value="">{form.taskType === 'cleaning' ? 'Select a machine…' : 'No machine'}</option>
+                <option value="">{form.taskType === 'cleaning' ? 'בחרו מכונה…' : 'ללא מכונה'}</option>
                 {machines.map(m => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
             </div>
             <div className="employee-form__field">
-              <label className="employee-form__label" htmlFor="task-due">Due Date (optional)</label>
+              <label className="employee-form__label" htmlFor="task-due">תאריך יעד (אופציונלי)</label>
               <input
                 id="task-due"
                 type="date"
@@ -200,28 +201,23 @@ export default function Tasks() {
             </div>
             <div className="employee-form__actions">
               <button type="submit" className="btn-add-employee" disabled={submitting}>
-                {submitting ? 'Creating…' : 'Create Task'}
+                {submitting ? 'יוצר…' : 'יצירת משימה'}
               </button>
               {success && <span className="employee-form__success">{success}</span>}
             </div>
           </form>
         </div>
 
-        <div className="machine-section">
-          <div className="machine-section__header">
-            <span className="machine-section__title">All Tasks</span>
-            <span className="machine-section__count">{visibleTasks.length} tasks</span>
-          </div>
-
+        <CollapsibleSection title="כל המשימות" count={`${visibleTasks.length} משימות`}>
           <div className="employee-form__field" style={{ padding: '16px 24px 20px' }}>
-            <label className="employee-form__label" htmlFor="task-filter">Filter by Employee</label>
+            <label className="employee-form__label" htmlFor="task-filter">סינון לפי עובד</label>
             <select
               id="task-filter"
               className="employee-form__select"
               value={filterEmployee}
               onChange={e => setFilterEmployee(e.target.value)}
             >
-              <option value="">All employees</option>
+              <option value="">כל העובדים</option>
               {employees.map(emp => (
                 <option key={emp.employee_id} value={emp.employee_id}>
                   {`${emp.first_name} ${emp.last_name}`.trim()}
@@ -230,19 +226,19 @@ export default function Tasks() {
             </select>
           </div>
 
-          {status === 'loading' && <p className="employee-empty">Loading tasks…</p>}
-          {status === 'error' && <p className="employee-empty">Could not load tasks. Please try again.</p>}
-          {status === 'ready' && visibleTasks.length === 0 && <p className="employee-empty">No tasks yet.</p>}
+          {status === 'loading' && <p className="employee-empty">טוען משימות…</p>}
+          {status === 'error' && <p className="employee-empty">לא ניתן היה לטעון את המשימות. אנא נסו שוב.</p>}
+          {status === 'ready' && visibleTasks.length === 0 && <p className="employee-empty">אין עדיין משימות.</p>}
 
           {status === 'ready' && visibleTasks.length > 0 && (
             <table className="machine-table">
               <thead>
                 <tr>
-                  <th>Title</th>
-                  <th>Assigned To</th>
-                  <th>Machine</th>
-                  <th>Due</th>
-                  <th>Status</th>
+                  <th>כותרת</th>
+                  <th>מוקצה ל</th>
+                  <th>מכונה</th>
+                  <th>יעד</th>
+                  <th>סטטוס</th>
                 </tr>
               </thead>
               <tbody>
@@ -259,12 +255,12 @@ export default function Tasks() {
                     <td>
                       <span className={`status-badge status-badge--${task.status === 'completed' ? 'clean' : 'maintenance'}`}>
                         <span className="status-badge__dot" />
-                        {task.status === 'completed' ? 'Completed' : 'Pending'}
+                        {task.status === 'completed' ? 'הושלם' : 'ממתין'}
                       </span>
-                      {task.completionNotes && <div className="machine-location">Notes: {task.completionNotes}</div>}
+                      {task.completionNotes && <div className="machine-location">הערות: {task.completionNotes}</div>}
                       {task.completionPhotoUrl && (
                         <a href={task.completionPhotoUrl} target="_blank" rel="noreferrer">
-                          <img src={task.completionPhotoUrl} alt="Completion evidence" className="employee-avatar" />
+                          <img src={task.completionPhotoUrl} alt="תיעוד השלמה" className="employee-avatar" />
                         </a>
                       )}
                     </td>
@@ -273,7 +269,7 @@ export default function Tasks() {
               </tbody>
             </table>
           )}
-        </div>
+        </CollapsibleSection>
       </div>
     </DashboardLayout>
   );

@@ -1,18 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
-import CleaningTaskBadge from '../components/dashboard/CleaningTaskBadge';
 import {
   getCleaningHistory,
   getMalfunctionHistory,
   getOrangeInventory,
   getSparePartTransactions,
-  getTasks,
   REPORT_STATUS_LABEL,
   type CleaningHistoryRecord,
   type MalfunctionHistoryRecord,
   type InventoryTransactionRecord,
   type SparePartTransactionRecord,
-  type TaskRecord,
 } from '../lib/supabase';
 import '../styles/layout.css';
 import '../styles/dashboard.css';
@@ -20,23 +17,24 @@ import '../styles/dashboard.css';
 const FALLBACK_USER = { name: '', role: 'employee' as const };
 
 type LoadStatus = 'loading' | 'error' | 'ready';
-type ReportTab = 'cleaning' | 'malfunctions' | 'orange' | 'spareparts' | 'tasks';
+type ReportTab = 'cleaning' | 'malfunctions' | 'orange' | 'spareparts';
 
 const PAGE_SIZE = 20;
 
 const TABS: { id: ReportTab; label: string }[] = [
-  { id: 'cleaning', label: 'Cleaning' },
-  { id: 'malfunctions', label: 'Malfunctions' },
-  { id: 'orange', label: 'Orange Inventory' },
-  { id: 'spareparts', label: 'Spare Parts' },
-  { id: 'tasks', label: 'Tasks' },
+  { id: 'cleaning', label: 'ניקיון' },
+  { id: 'malfunctions', label: 'תקלות' },
+  { id: 'orange', label: 'מלאי תפוזים' },
+  { id: 'spareparts', label: 'חלקי חילוף' },
 ];
 
 const TYPE_LABEL: Record<string, string> = {
-  delivery: 'Delivery',
-  withdrawal: 'Withdrawal',
-  adjustment: 'Adjustment',
+  delivery: 'קבלת סחורה',
+  withdrawal: 'משיכה',
+  adjustment: 'התאמה',
 };
+
+const SEVERITY_LABEL: Record<string, string> = { low: 'נמוכה', medium: 'בינונית', high: 'גבוהה', critical: 'קריטית' };
 
 export default function Reports() {
   const [activeTab, setActiveTab] = useState<ReportTab>('cleaning');
@@ -47,7 +45,6 @@ export default function Reports() {
   const [malfunctions, setMalfunctions] = useState<MalfunctionHistoryRecord[]>([]);
   const [orangeTxns, setOrangeTxns] = useState<InventoryTransactionRecord[]>([]);
   const [partTxns, setPartTxns] = useState<SparePartTransactionRecord[]>([]);
-  const [tasks, setTasks] = useState<TaskRecord[]>([]);
 
   const load = useCallback(async (tab: ReportTab, currentLimit: number) => {
     setStatus('loading');
@@ -64,14 +61,10 @@ export default function Reports() {
       const res = await getOrangeInventory(currentLimit);
       if (res.error) { setStatus('error'); return; }
       setOrangeTxns(res.data?.transactions ?? []);
-    } else if (tab === 'spareparts') {
+    } else {
       const res = await getSparePartTransactions(currentLimit);
       if (res.error) { setStatus('error'); return; }
       setPartTxns(res.transactions);
-    } else {
-      const res = await getTasks(currentLimit);
-      if (res.error) { setStatus('error'); return; }
-      setTasks(res.tasks);
     }
 
     setStatus('ready');
@@ -94,17 +87,16 @@ export default function Reports() {
     activeTab === 'cleaning' ? cleaning.length :
     activeTab === 'malfunctions' ? malfunctions.length :
     activeTab === 'orange' ? orangeTxns.length :
-    activeTab === 'spareparts' ? partTxns.length :
-    tasks.length;
+    partTxns.length;
 
   const hasMore = status === 'ready' && currentCount >= limit;
 
   return (
-    <DashboardLayout title="Reports" currentUser={FALLBACK_USER}>
+    <DashboardLayout title="דוחות" currentUser={FALLBACK_USER}>
       <div className="dashboard-page">
         <div className="page-header">
-          <h2 className="page-header__title">Reports</h2>
-          <p className="page-header__subtitle">Company-wide operational history.</p>
+          <h2 className="page-header__title">דוחות</h2>
+          <p className="page-header__subtitle">היסטוריה תפעולית כלל-חברתית.</p>
         </div>
 
         <div className="report-tabs">
@@ -119,30 +111,30 @@ export default function Reports() {
           ))}
         </div>
 
-        {status === 'loading' && <p className="employee-empty">Loading…</p>}
+        {status === 'loading' && <p className="employee-empty">טוען…</p>}
 
         {status === 'error' && (
           <div className="alert-banner">
             <span className="alert-banner__dot" />
-            Could not load this report. Please try again.
+            לא ניתן היה לטעון את הדוח. אנא נסו שוב.
           </div>
         )}
 
         {status === 'ready' && activeTab === 'cleaning' && (
           <div className="machine-section">
             <div className="machine-section__header">
-              <span className="machine-section__title">Cleaning History</span>
-              <span className="machine-section__count">{cleaning.length} shown</span>
+              <span className="machine-section__title">היסטוריית ניקיון</span>
+              <span className="machine-section__count">{cleaning.length} מוצגים</span>
             </div>
             {cleaning.length === 0 ? (
-              <p className="employee-empty">No cleaning history yet.</p>
+              <p className="employee-empty">אין עדיין היסטוריית ניקיון.</p>
             ) : (
               <table className="machine-table">
                 <thead>
                   <tr>
-                    <th>Machine</th>
-                    <th>Cleaned By</th>
-                    <th>Date</th>
+                    <th>מכונה</th>
+                    <th>נוקה על ידי</th>
+                    <th>תאריך</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -150,7 +142,7 @@ export default function Reports() {
                     <tr key={r.id}>
                       <td>{r.machineName}</td>
                       <td>{r.cleanedByName}</td>
-                      <td>{new Date(r.cleanedAt).toLocaleString()}</td>
+                      <td>{new Date(r.cleanedAt).toLocaleString('he-IL')}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -162,21 +154,21 @@ export default function Reports() {
         {status === 'ready' && activeTab === 'malfunctions' && (
           <div className="machine-section">
             <div className="machine-section__header">
-              <span className="machine-section__title">Malfunction Reports</span>
-              <span className="machine-section__count">{malfunctions.length} shown</span>
+              <span className="machine-section__title">דוחות תקלות</span>
+              <span className="machine-section__count">{malfunctions.length} מוצגים</span>
             </div>
             {malfunctions.length === 0 ? (
-              <p className="employee-empty">No malfunction reports yet.</p>
+              <p className="employee-empty">אין עדיין דיווחי תקלות.</p>
             ) : (
               <table className="machine-table">
                 <thead>
                   <tr>
-                    <th>Machine</th>
-                    <th>Reported By</th>
-                    <th>Description</th>
-                    <th>Severity</th>
-                    <th>Status</th>
-                    <th>Date</th>
+                    <th>מכונה</th>
+                    <th>דווח על ידי</th>
+                    <th>תיאור</th>
+                    <th>חומרה</th>
+                    <th>סטטוס</th>
+                    <th>תאריך</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -185,9 +177,9 @@ export default function Reports() {
                       <td>{r.machineName}</td>
                       <td>{r.reportedByName}</td>
                       <td>{r.description}</td>
-                      <td>{r.severity}</td>
+                      <td>{SEVERITY_LABEL[r.severity] ?? r.severity}</td>
                       <td>{REPORT_STATUS_LABEL[r.status]}</td>
-                      <td>{new Date(r.reportedAt).toLocaleString()}</td>
+                      <td>{new Date(r.reportedAt).toLocaleString('he-IL')}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -199,20 +191,20 @@ export default function Reports() {
         {status === 'ready' && activeTab === 'orange' && (
           <div className="machine-section">
             <div className="machine-section__header">
-              <span className="machine-section__title">Orange Carton Movements</span>
-              <span className="machine-section__count">{orangeTxns.length} shown</span>
+              <span className="machine-section__title">תנועות קרטוני תפוזים</span>
+              <span className="machine-section__count">{orangeTxns.length} מוצגים</span>
             </div>
             {orangeTxns.length === 0 ? (
-              <p className="employee-empty">No orange carton movements yet.</p>
+              <p className="employee-empty">אין עדיין תנועות קרטוני תפוזים.</p>
             ) : (
               <table className="machine-table">
                 <thead>
                   <tr>
-                    <th>Type</th>
-                    <th>Quantity</th>
-                    <th>Recorded By</th>
-                    <th>Notes</th>
-                    <th>Date</th>
+                    <th>סוג</th>
+                    <th>כמות</th>
+                    <th>נרשם על ידי</th>
+                    <th>הערות</th>
+                    <th>תאריך</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -222,7 +214,7 @@ export default function Reports() {
                       <td>{t.quantity > 0 ? `+${t.quantity}` : t.quantity}</td>
                       <td>{t.recordedByName}</td>
                       <td>{t.notes || '—'}</td>
-                      <td>{new Date(t.createdAt).toLocaleString()}</td>
+                      <td>{new Date(t.createdAt).toLocaleString('he-IL')}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -234,21 +226,21 @@ export default function Reports() {
         {status === 'ready' && activeTab === 'spareparts' && (
           <div className="machine-section">
             <div className="machine-section__header">
-              <span className="machine-section__title">Spare Parts Movements</span>
-              <span className="machine-section__count">{partTxns.length} shown</span>
+              <span className="machine-section__title">תנועות חלקי חילוף</span>
+              <span className="machine-section__count">{partTxns.length} מוצגים</span>
             </div>
             {partTxns.length === 0 ? (
-              <p className="employee-empty">No spare parts movements yet.</p>
+              <p className="employee-empty">אין עדיין תנועות חלקי חילוף.</p>
             ) : (
               <table className="machine-table">
                 <thead>
                   <tr>
-                    <th>Part</th>
-                    <th>Type</th>
-                    <th>Quantity</th>
-                    <th>Recorded By</th>
-                    <th>Notes</th>
-                    <th>Date</th>
+                    <th>חלק</th>
+                    <th>סוג</th>
+                    <th>כמות</th>
+                    <th>נרשם על ידי</th>
+                    <th>הערות</th>
+                    <th>תאריך</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -259,55 +251,7 @@ export default function Reports() {
                       <td>{t.quantity > 0 ? `+${t.quantity}` : t.quantity}</td>
                       <td>{t.recordedByName}</td>
                       <td>{t.notes || '—'}</td>
-                      <td>{new Date(t.createdAt).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
-
-        {status === 'ready' && activeTab === 'tasks' && (
-          <div className="machine-section">
-            <div className="machine-section__header">
-              <span className="machine-section__title">Employee Tasks</span>
-              <span className="machine-section__count">{tasks.length} shown</span>
-            </div>
-            {tasks.length === 0 ? (
-              <p className="employee-empty">No tasks yet.</p>
-            ) : (
-              <table className="machine-table">
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Type</th>
-                    <th>Assigned To</th>
-                    <th>Machine</th>
-                    <th>Due</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tasks.map(t => (
-                    <tr key={t.id}>
-                      <td>{t.title}</td>
-                      <td>{t.taskType === 'cleaning' ? <CleaningTaskBadge /> : 'General'}</td>
-                      <td>{t.assignedToName}</td>
-                      <td>{t.machineName ?? '—'}</td>
-                      <td>{t.dueDate ?? '—'}</td>
-                      <td>
-                        <span className={`status-badge status-badge--${t.status === 'completed' ? 'clean' : 'maintenance'}`}>
-                          <span className="status-badge__dot" />
-                          {t.status === 'completed' ? 'Completed' : 'Pending'}
-                        </span>
-                        {t.completionNotes && <div className="machine-location">Notes: {t.completionNotes}</div>}
-                        {t.completionPhotoUrl && (
-                          <a href={t.completionPhotoUrl} target="_blank" rel="noreferrer">
-                            <img src={t.completionPhotoUrl} alt="Completion evidence" className="employee-avatar" />
-                          </a>
-                        )}
-                      </td>
+                      <td>{new Date(t.createdAt).toLocaleString('he-IL')}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -318,7 +262,7 @@ export default function Reports() {
 
         {hasMore && (
           <button className="btn-mark-clean report-load-more" onClick={handleLoadMore}>
-            Load More
+            טעינת עוד
           </button>
         )}
       </div>

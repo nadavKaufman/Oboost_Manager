@@ -49,7 +49,7 @@
 .header__cta {
   display: inline-flex;
   align-items: center;
-  margin-left: 8px;
+  margin-right: 8px;
   padding: 8px 18px;
   background: var(--text);
   color: #fff;
@@ -173,7 +173,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  margin-left: var(--sidebar-w);
+  margin-right: var(--sidebar-w);
   /* Without this, the content column has no background of its own and
      shows body's background through — which is always the light --bg,
      since body sits outside the [data-theme="dark"] scope that overrides
@@ -186,7 +186,7 @@
 
 @media (max-width: 1023px) {
   .dash-layout__main {
-    margin-left: 0;
+    margin-right: 0;
   }
 }
 
@@ -197,11 +197,11 @@
 .sidebar {
   position: fixed;
   top: 0;
-  left: 0;
+  right: 0;
   bottom: 0;
   width: var(--sidebar-w);
   background: var(--surface);
-  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border);
   border-top: 3px solid var(--orange);
   display: flex;
   flex-direction: column;
@@ -211,7 +211,7 @@
 
 @media (max-width: 1023px) {
   .sidebar {
-    transform: translateX(calc(-1 * var(--sidebar-w)));
+    transform: translateX(var(--sidebar-w));
   }
 
   .sidebar.open {
@@ -296,20 +296,20 @@
   font-weight: 500;
   color: var(--text-muted);
   transition: background 0.13s, color 0.13s, border-color 0.13s;
-  border-left: 2px solid transparent;
-  margin-left: -2px;
+  border-right: 2px solid transparent;
+  margin-right: -2px;
 }
 
 .sidebar__nav-item:hover {
   background: var(--orange-tint);
   color: var(--text);
-  border-left-color: var(--border);
+  border-right-color: var(--border);
 }
 
 .sidebar__nav-item.active {
   background: var(--orange-tint);
   color: var(--orange);
-  border-left-color: var(--orange);
+  border-right-color: var(--orange);
   font-weight: 600;
 }
 
@@ -338,6 +338,32 @@
   overflow: hidden;
 }
 
+/* ─── Sidebar footer (role, theme toggle, sign out) ───
+   Sits below .sidebar__nav, which is flex:1 — so this footer naturally
+   pins to the bottom of the sidebar on both the mobile off-canvas drawer
+   and the always-visible desktop sidebar. Reuses the same
+   .topbar__role-badge / .topbar__theme-toggle / .topbar__logout classes
+   (and their colors/borders/sizing) that used to live in the TopBar. */
+.sidebar__footer {
+  padding: 16px 20px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar__footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sidebar__footer-logout {
+  width: 100%;
+  text-align: center;
+}
+
 /* ─── Collapsed sidebar (desktop only — mobile keeps the off-canvas drawer) ─── */
 
 @media (min-width: 1024px) {
@@ -364,11 +390,34 @@
   .dash-layout--collapsed .sidebar__nav-item {
     justify-content: center;
     padding: 10px 0;
-    margin-left: 0;
+    margin-right: 0;
   }
 
   .dash-layout--collapsed .sidebar__nav-icon {
     font-size: 18px;
+  }
+
+  .dash-layout--collapsed .sidebar__footer {
+    padding: 12px 8px 16px;
+    align-items: center;
+  }
+
+  .dash-layout--collapsed .sidebar__footer-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .dash-layout--collapsed .sidebar__footer-label {
+    display: none;
+  }
+
+  .dash-layout--collapsed .topbar__role-badge {
+    padding: 5px;
+  }
+
+  .dash-layout--collapsed .sidebar__footer-logout {
+    width: auto;
+    padding: 6px;
   }
 }
 

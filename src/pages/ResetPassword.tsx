@@ -70,7 +70,7 @@ export default function ResetPassword() {
     setError(null);
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError('הסיסמאות אינן תואמות.');
       return;
     }
 
@@ -80,11 +80,11 @@ export default function ResetPassword() {
 
     if (updateError) {
       if (import.meta.env.DEV) console.error('[oboost] updateUser error:', updateError.message);
-      setError('Could not update your password. Please request a new reset link and try again.');
+      setError('לא ניתן היה לעדכן את הסיסמה. אנא בקשו קישור איפוס חדש ונסו שוב.');
       return;
     }
 
-    setSuccess('Password updated. Signing you out…');
+    setSuccess('הסיסמה עודכנה. מתנתקים…');
     setTimeout(async () => {
       await supabase.auth.signOut();
       navigate('/login', { replace: true });
@@ -97,7 +97,7 @@ export default function ResetPassword() {
         <div className="login-card">
           <div className="login-card__header">
             <h1 className="login-card__title">OBoost Manager</h1>
-            <p className="login-card__subtitle">Verifying your reset link…</p>
+            <p className="login-card__subtitle">מאמתים את קישור האיפוס…</p>
           </div>
         </div>
       </div>
@@ -109,9 +109,9 @@ export default function ResetPassword() {
       <div className="login-page">
         <div className="login-card">
           <div className="login-card__header">
-            <h1 className="login-card__title">Reset link invalid</h1>
+            <h1 className="login-card__title">קישור האיפוס אינו תקין</h1>
             <p className="login-card__subtitle">
-              This password reset link is invalid or has expired. Please request a new one from the login page.
+              קישור איפוס הסיסמה אינו תקין או שפג תוקפו. אנא בקשו קישור חדש מדף ההתחברות.
             </p>
           </div>
         </div>
@@ -123,12 +123,12 @@ export default function ResetPassword() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-card__header">
-          <h1 className="login-card__title">Reset your password</h1>
-          <p className="login-card__subtitle">Choose a new password for your account.</p>
+          <h1 className="login-card__title">איפוס הסיסמה</h1>
+          <p className="login-card__subtitle">בחרו סיסמה חדשה לחשבון שלכם.</p>
         </div>
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="login-form__field">
-            <label className="login-form__label" htmlFor="password">New password</label>
+            <label className="login-form__label" htmlFor="password">סיסמה חדשה</label>
             <input
               id="password"
               type="password"
@@ -142,7 +142,7 @@ export default function ResetPassword() {
             />
           </div>
           <div className="login-form__field">
-            <label className="login-form__label" htmlFor="confirmPassword">Confirm password</label>
+            <label className="login-form__label" htmlFor="confirmPassword">אימות סיסמה</label>
             <input
               id="confirmPassword"
               type="password"
@@ -158,7 +158,7 @@ export default function ResetPassword() {
           {error && <p className="login-form__error">{error}</p>}
           {success && <p className="employee-form__success">{success}</p>}
           <button type="submit" className="login-form__submit" disabled={submitting || !!success}>
-            {submitting ? 'Saving…' : 'Save password'}
+            {submitting ? 'שומר…' : 'שמירת סיסמה'}
           </button>
         </form>
       </div>

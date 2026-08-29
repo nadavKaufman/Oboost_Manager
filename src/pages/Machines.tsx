@@ -1,7 +1,8 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import MachineTable from '../components/dashboard/MachineTable';
+import MachineMobileView from '../components/dashboard/MachineMobileView';
 import { type Machine } from '../types/machine';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -12,6 +13,7 @@ import {
   uploadMachineImage,
   PREVIEW_BLOCKED_MESSAGE,
 } from '../lib/supabase';
+import { scrollIntoComfortableView } from '../lib/scrollIntoComfortableView';
 import '../styles/layout.css';
 import '../styles/dashboard.css';
 
@@ -32,11 +34,16 @@ const EMPTY_MACHINE_FORM = {
 interface Props {
   title?: string;
   subtitle?: string;
+  /** Shown instead of `subtitle` only below the mobile breakpoint (see
+   *  .page-header__subtitle--mobile in dashboard.css). Defaults to the same
+   *  text as `subtitle` so callers that don't pass it see no change. */
+  mobileSubtitle?: string;
 }
 
 export default function Machines({
-  title = 'Machines',
-  subtitle = 'Manage and monitor all OBoost machines.',
+  title = 'מכונות',
+  subtitle = 'ניהול ומעקב אחר כל מכונות OBoost.',
+  mobileSubtitle = 'ניהול כל המכונות',
 }: Props) {
   const { profile, session, loading } = useAuth();
   const [machines, setMachines] = useState<Machine[]>([]);
@@ -56,6 +63,58 @@ export default function Machines({
   const [creatingMachine, setCreatingMachine] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [createdMachine, setCreatedMachine] = useState<{ id: string; name: string } | null>(null);
+  const [addMachineOpen, setAddMachineOpen] = useState(false);
+  const addMachineRef = useRef<HTMLDivElement>(null);
+  const addMachineMounted = useRef(false);
+
+  // Smooth-scroll to the Add Machine section on every open/close toggle —
+  // down to the form when it opens (so it's never "opens too far down the
+  // page and easy to miss"), and back up to the now-collapsed button when
+  // it closes, since the ref always points at the same wrapper. Skips the
+  // very first render so loading the page doesn't itself trigger a scroll.
+  // Desktop keeps its original unconditional scrollIntoView — no carousel
+  // there to account for, and it isn't part of this mobile-only tuning.
+  // Mobile: opening top-aligns with extra clearance (always — never the
+  // "center if it fits" behavior scrollIntoComfortableView otherwise uses,
+  // which was undershooting here) — the form becomes the dominant thing on
+  // screen, not something peeking in below still-visible old content.
+  // The scroll is delayed until the .collapsible__body reveal transition
+  // (grid-template-rows, 0.25s — see dashboard.css) actually finishes:
+  // starting it immediately, while that transition is still growing the
+  // page's height underneath the in-flight smooth scroll, was causing a
+  // visible second "jump" partway through (the browser's scroll-anchoring
+  // compensating for the concurrent layout shift). Waiting the ~250ms out
+  // first means nothing is changing size while the scroll animates, so
+  // there's only ever one, single scroll. Closing scrolls the page all the
+  // way back to its top, since the closed button always sits in row 1
+  // (see .machines-add-section's CSS grid placement) right next to the
+  // page header — i.e. exactly where it was before the form opened.
+  // (Close is unchanged from before.)
+  useEffect(() => {
+    if (!addMachineMounted.current) {
+      addMachineMounted.current = true;
+      return;
+    }
+    const el = addMachineRef.current;
+    if (!el) return;
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    if (addMachineOpen) {
+      if (isMobile) {
+        const timer = setTimeout(() => {
+          scrollIntoComfortableView(el, { align: 'top', topPadding: 32 });
+        }, 260);
+        return () => clearTimeout(timer);
+      } else {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    } else {
+      if (isMobile) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }, [addMachineOpen]);
 
   useEffect(() => {
     if (loading) return;
@@ -69,6 +128,11 @@ export default function Machines({
       }
     });
   }, [loading, session]);
+
+  async function refreshMachines() {
+    const { machines: rows, error: fetchError } = await getMachines();
+    if (!fetchError) setMachines(rows);
+  }
 
   async function handleMarkCleaned(id: string) {
     if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
@@ -119,7 +183,7 @@ export default function Machines({
     setCreatedMachine(null);
 
     if (!machineForm.name.trim() || !machineForm.location.trim()) {
-      setCreateError('Name and location are required.');
+      setCreateError('יש למלא שם ומיקום.');
       return;
     }
 
@@ -133,7 +197,7 @@ export default function Machines({
 
     if (error || !id) {
       setCreatingMachine(false);
-      setCreateError(error ?? 'Could not create the machine. Please try again.');
+      setCreateError(error ?? 'לא ניתן היה ליצור את המכונה. אנא נסו שוב.');
       return;
     }
 
@@ -162,7 +226,8 @@ export default function Machines({
       <div className="dashboard-page machines-page">
         <div className="page-header">
           <h2 className="page-header__title">{title}</h2>
-          <p className="page-header__subtitle">{subtitle}</p>
+          <p className="page-header__subtitle page-header__subtitle--desktop">{subtitle}</p>
+          <p className="page-header__subtitle page-header__subtitle--mobile">{mobileSubtitle}</p>
         </div>
 
         {actionError && (
@@ -173,39 +238,67 @@ export default function Machines({
         )}
 
         {machinesStatus === 'loading' && (
-          <p className="employee-empty">Loading machines…</p>
+          <p className="employee-empty">טוען מכונות…</p>
         )}
 
         {machinesStatus === 'error' && (
           <div className="alert-banner">
             <span className="alert-banner__dot" />
-            Could not load machines. Please try again.
+            לא ניתן היה לטעון את המכונות. אנא נסו שוב.
           </div>
         )}
 
         {machinesStatus === 'ready' && machines.length === 0 && (
-          <p className="employee-empty">No machines have been added yet.</p>
+          <p className="employee-empty">טרם נוספו מכונות.</p>
         )}
 
         {machinesStatus === 'ready' && machines.length > 0 && (
-          <MachineTable
-            machines={machines}
-            onMarkCleaned={handleMarkCleaned}
-            currentUserRole={profile?.role}
-            savingWorkingIds={savingWorkingIds}
-            onMarkWorking={handleMarkWorking}
-            savingCleanIds={savingCleanIds}
-          />
+          <>
+            <div className="machines-desktop-view">
+              <MachineTable
+                machines={machines}
+                onMarkCleaned={handleMarkCleaned}
+                currentUserRole={profile?.role}
+                savingWorkingIds={savingWorkingIds}
+                onMarkWorking={handleMarkWorking}
+                savingCleanIds={savingCleanIds}
+              />
+            </div>
+            <MachineMobileView
+              machines={machines}
+              onMarkCleaned={handleMarkCleaned}
+              currentUserRole={profile?.role}
+              savingWorkingIds={savingWorkingIds}
+              onMarkWorking={handleMarkWorking}
+              savingCleanIds={savingCleanIds}
+              onUpdated={refreshMachines}
+            />
+          </>
         )}
 
         {canViewManagerUI && (
-          <div className="employee-form">
-            <div className="machine-section__header">
-              <span className="machine-section__title">Add Machine</span>
-            </div>
+          <div
+            className={`machine-section employee-form machines-add-section${addMachineOpen ? ' collapsible--open' : ''}`}
+            ref={addMachineRef}
+          >
+            <button
+              type="button"
+              className="machine-section__header collapsible-header"
+              onClick={() => setAddMachineOpen(o => !o)}
+              aria-expanded={addMachineOpen}
+            >
+              <span className="machine-section__title">הוספת מכונה</span>
+              <span className="collapsible-header__right">
+                <span className={`collapsible-chevron${addMachineOpen ? ' collapsible-chevron--open' : ''}`} aria-hidden="true">
+                  ▾
+                </span>
+              </span>
+            </button>
+            <div className={`collapsible__body${addMachineOpen ? ' collapsible__body--open' : ''}`}>
+              <div className="collapsible__body-inner">
             <form className="employee-form__body" onSubmit={handleCreateMachine}>
               <div className="employee-form__field">
-                <label className="employee-form__label" htmlFor="mach-name">Name</label>
+                <label className="employee-form__label" htmlFor="mach-name">שם</label>
                 <input
                   id="mach-name"
                   className="employee-form__input"
@@ -215,18 +308,18 @@ export default function Machines({
                 />
               </div>
               <div className="employee-form__field">
-                <label className="employee-form__label" htmlFor="mach-location">Location</label>
+                <label className="employee-form__label" htmlFor="mach-location">מיקום</label>
                 <input
                   id="mach-location"
                   className="employee-form__input"
-                  placeholder="e.g. Dizengoff Center, Tel Aviv"
+                  placeholder="לדוגמה: דיזנגוף סנטר, תל אביב"
                   value={machineForm.location}
                   onChange={e => setMachineForm(prev => ({ ...prev, location: e.target.value }))}
                   required
                 />
               </div>
               <div className="employee-form__field">
-                <label className="employee-form__label" htmlFor="mach-notes">Notes (optional)</label>
+                <label className="employee-form__label" htmlFor="mach-notes">הערות (אופציונלי)</label>
                 <input
                   id="mach-notes"
                   className="employee-form__input"
@@ -235,7 +328,7 @@ export default function Machines({
                 />
               </div>
               <div className="employee-form__field">
-                <label className="employee-form__label" htmlFor="mach-image">Photo (optional)</label>
+                <label className="employee-form__label" htmlFor="mach-image">תמונה (אופציונלי)</label>
                 <input
                   id="mach-image"
                   type="file"
@@ -252,21 +345,26 @@ export default function Machines({
                     checked={machineForm.isActive}
                     onChange={e => setMachineForm(prev => ({ ...prev, isActive: e.target.checked }))}
                   />
-                  {' '}Active
+                  {' '}פעיל
                 </label>
               </div>
               <div className="employee-form__actions">
                 <button type="submit" className="btn-add-employee" disabled={creatingMachine}>
-                  {creatingMachine ? 'Adding…' : 'Add Machine'}
+                  {creatingMachine ? 'מוסיף…' : 'הוספת מכונה'}
+                </button>
+                <button type="button" className="btn-report-issue" onClick={() => setAddMachineOpen(false)}>
+                  ביטול
                 </button>
                 {createdMachine && (
                   <span className="employee-form__success">
-                    {createdMachine.name} added. <Link to={`/machines/${createdMachine.id}`}>View details</Link>
+                    {createdMachine.name} נוספה בהצלחה. <Link to={`/machines/${createdMachine.id}`}>צפייה בפרטים</Link>
                   </span>
                 )}
                 {createError && <span className="employee-form__error">{createError}</span>}
               </div>
             </form>
+              </div>
+            </div>
           </div>
         )}
       </div>

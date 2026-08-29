@@ -17,7 +17,7 @@ interface Props {
 
 export default function CollapsibleSection({ title, count, defaultOpen = false, mobileOnly = false, className, children }: Props) {
   const [open, setOpen] = useState(defaultOpen);
-  const sectionClass = ['machine-section', mobileOnly && 'collapsible--mobile-only', className]
+  const sectionClass = ['machine-section', mobileOnly && 'collapsible--mobile-only', className, open && 'collapsible--open']
     .filter(Boolean)
     .join(' ');
 

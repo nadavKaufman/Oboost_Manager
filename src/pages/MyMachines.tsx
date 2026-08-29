@@ -1,5 +1,11 @@
 import Machines from './Machines';
 
 export default function MyMachines() {
-  return <Machines title="Machines" subtitle="View all OBoost machines and report cleaning or malfunctions." />;
+  return (
+    <Machines
+      title="מכונות"
+      subtitle="צפייה בכל מכונות OBoost ודיווח על ניקיון או תקלות."
+      mobileSubtitle="צפייה בכל מכונות OBoost ודיווח על ניקיון או תקלות."
+    />
+  );
 }

@@ -70,17 +70,16 @@ export default function DashboardLayout({ title, currentUser, children }: Props)
         userRole={displayRole}
         collapsed={sidebarCollapsed}
         onToggleCollapse={toggleSidebarCollapsed}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onLogout={signOut}
       />
 
       <div className="dash-layout__main">
         <TopBar
           title={title}
           userName={displayName}
-          userRole={displayRole}
           onMenuClick={() => setSidebarOpen(o => !o)}
-          onLogout={signOut}
-          theme={theme}
-          onToggleTheme={toggleTheme}
         />
         {children}
       </div>

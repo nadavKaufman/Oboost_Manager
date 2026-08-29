@@ -12,19 +12,19 @@ interface Props {
   savingCleanIds: Set<string>;
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  clean: 'Clean',
-  due_soon: 'Clean Due',
-  overdue: 'Overdue',
+export const STATUS_LABEL: Record<string, string> = {
+  clean: 'נקי',
+  due_soon: 'דורש ניקוי',
+  overdue: 'ניקוי דחוף',
 };
 
-const FAULT_LABEL: Record<string, string> = {
-  ok: 'OK',
-  fault: 'Malfunction',
-  maintenance: 'Maintenance',
+export const FAULT_LABEL: Record<string, string> = {
+  ok: 'תקין',
+  fault: 'תקלה',
+  maintenance: 'בתחזוקה',
 };
 
-const FAULT_STATUS_CLASS: Record<string, string> = {
+export const FAULT_STATUS_CLASS: Record<string, string> = {
   ok: 'status-badge--clean',
   fault: 'status-badge--overdue',
   maintenance: 'status-badge--maintenance',
@@ -58,18 +58,18 @@ export default function MachineTable({
   return (
     <div className="machine-section">
       <div className="machine-section__header">
-        <span className="machine-section__title">All Machines</span>
-        <span className="machine-section__count">{machines.length} machines</span>
+        <span className="machine-section__title">כל המכונות</span>
+        <span className="machine-section__count">{machines.length} מכונות</span>
       </div>
 
       <table className="machine-table">
         <thead>
           <tr>
-            <th>Machine</th>
-            <th>Status</th>
-            <th>Cleaning</th>
-            <th>Malfunction</th>
-            <th>Actions</th>
+            <th>מכונה</th>
+            <th>סטטוס</th>
+            <th>ניקיון</th>
+            <th>תקלה</th>
+            <th>פעולות</th>
           </tr>
         </thead>
         <tbody>
@@ -99,7 +99,7 @@ export default function MachineTable({
                       type="button"
                       className={`machine-row-chevron collapsible-chevron${isExpanded ? ' collapsible-chevron--open' : ''}`}
                       aria-expanded={isExpanded}
-                      aria-label={isExpanded ? 'Collapse machine details' : 'Expand machine details'}
+                      aria-label={isExpanded ? 'הסתרת פרטי המכונה' : 'הצגת פרטי המכונה'}
                       onClick={e => {
                         e.stopPropagation();
                         toggleExpanded(machine.id);
@@ -109,13 +109,13 @@ export default function MachineTable({
                     </button>
                   </div>
                 </td>
-                <td data-label="Status" onClick={() => toggleExpanded(machine.id)}>
+                <td data-label="סטטוס" onClick={() => toggleExpanded(machine.id)}>
                   <span className={`status-badge status-badge--${machine.isActive ? 'clean' : 'overdue'}`}>
                     <span className="status-badge__dot" />
-                    {machine.isActive ? 'Active' : 'Inactive'}
+                    {machine.isActive ? 'פעיל' : 'לא פעיל'}
                   </span>
                 </td>
-                <td data-label="Cleaning" onClick={() => toggleExpanded(machine.id)}>
+                <td data-label="ניקיון" onClick={() => toggleExpanded(machine.id)}>
                   <span
                     className={`status-badge status-badge--${status}${status === 'overdue' ? ' status-badge--cleaning-overdue' : ''}`}
                   >
@@ -127,13 +127,13 @@ export default function MachineTable({
                     </div>
                   </div>
                 </td>
-                <td data-label="Malfunction" onClick={() => toggleExpanded(machine.id)}>
+                <td data-label="תקלה" onClick={() => toggleExpanded(machine.id)}>
                   <span className={`status-badge ${FAULT_STATUS_CLASS[machine.faultStatus]}`}>
                     <span className="status-badge__dot" />
                     {FAULT_LABEL[machine.faultStatus]}
                   </span>
                 </td>
-                <td data-label="Actions">
+                <td data-label="פעולות">
                   <div className={collapseClass}>
                     <div className="machine-row-collapse__inner">
                       <div className="table-actions">
@@ -142,10 +142,10 @@ export default function MachineTable({
                           disabled={savingCleanIds.has(machine.id)}
                           onClick={() => onMarkCleaned(machine.id)}
                         >
-                          {savingCleanIds.has(machine.id) ? 'Saving…' : 'Mark Cleaned'}
+                          {savingCleanIds.has(machine.id) ? 'שומר…' : 'סמן כנוקה'}
                         </button>
                         <Link className="btn-report-issue" to={`/machines/${machine.id}/report-malfunction`}>
-                          Report Malfunction
+                          דיווח על תקלה
                         </Link>
                         {canMarkWorking && machine.faultStatus === 'fault' && (
                           <button
@@ -153,7 +153,7 @@ export default function MachineTable({
                             disabled={savingWorkingIds.has(machine.id)}
                             onClick={() => onMarkWorking(machine.id)}
                           >
-                            {savingWorkingIds.has(machine.id) ? 'Saving…' : 'Mark as Working'}
+                            {savingWorkingIds.has(machine.id) ? 'שומר…' : 'סמן כתקין'}
                           </button>
                         )}
                       </div>

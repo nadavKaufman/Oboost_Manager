@@ -23,7 +23,7 @@ export default function Login() {
     if (error || !data.user) {
       setSubmitting(false);
       if (import.meta.env.DEV && error) console.error('[oboost] login error:', error.message);
-      setError('Incorrect email or password. Please try again.');
+      setError('אימייל או סיסמה שגויים. אנא נסו שוב.');
       return;
     }
 
@@ -41,7 +41,7 @@ export default function Login() {
   async function handleForgotPassword() {
     setForgotMessage(null);
     if (!email) {
-      setForgotMessage('Enter your email above first.');
+      setForgotMessage('יש להזין את כתובת האימייל למעלה תחילה.');
       return;
     }
     setForgotSubmitting(true);
@@ -52,7 +52,7 @@ export default function Login() {
     if (resetError && import.meta.env.DEV) console.error('[oboost] resetPasswordForEmail error:', resetError.message);
     // Same message regardless of outcome, so the response never reveals
     // whether an account exists for this email.
-    setForgotMessage('If an account exists for that email, a password reset link has been sent.');
+    setForgotMessage('אם קיים חשבון עם כתובת אימייל זו, נשלח אליו קישור לאיפוס סיסמה.');
   }
 
   return (
@@ -60,11 +60,11 @@ export default function Login() {
       <div className="login-card">
         <div className="login-card__header">
           <h1 className="login-card__title">OBoost Manager</h1>
-          <p className="login-card__subtitle">Sign in to continue</p>
+          <p className="login-card__subtitle">התחברות למערכת</p>
         </div>
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="login-form__field">
-            <label className="login-form__label" htmlFor="email">Email</label>
+            <label className="login-form__label" htmlFor="email">אימייל</label>
             <input
               id="email"
               type="email"
@@ -76,7 +76,7 @@ export default function Login() {
             />
           </div>
           <div className="login-form__field">
-            <label className="login-form__label" htmlFor="password">Password</label>
+            <label className="login-form__label" htmlFor="password">סיסמה</label>
             <input
               id="password"
               type="password"
@@ -89,7 +89,7 @@ export default function Login() {
           </div>
           {error && <p className="login-form__error">{error}</p>}
           <button type="submit" className="login-form__submit" disabled={submitting}>
-            {submitting ? 'Signing in…' : 'Sign in'}
+            {submitting ? 'מתחבר…' : 'כניסה'}
           </button>
           <button
             type="button"
@@ -97,7 +97,7 @@ export default function Login() {
             onClick={handleForgotPassword}
             disabled={forgotSubmitting}
           >
-            {forgotSubmitting ? 'Sending…' : 'Forgot password?'}
+            {forgotSubmitting ? 'שולח…' : 'שכחת סיסמה?'}
           </button>
           {forgotMessage && <p className="employee-form__success">{forgotMessage}</p>}
         </form>

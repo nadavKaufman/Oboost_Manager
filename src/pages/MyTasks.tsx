@@ -63,18 +63,18 @@ export default function MyTasks() {
       setNotes('');
       setPhoto(null);
       setCompletionSuccess(
-        isCleaningTask ? 'Task completed — machine marked as cleaned.' : 'Task completed.'
+        isCleaningTask ? 'המשימה הושלמה — המכונה סומנה כנוקתה.' : 'המשימה הושלמה.'
       );
       await load();
     }
   }
 
   return (
-    <DashboardLayout title="My Tasks" currentUser={FALLBACK_USER}>
+    <DashboardLayout title="המשימות שלי" currentUser={FALLBACK_USER}>
       <div className="dashboard-page">
         <div className="page-header">
-          <h2 className="page-header__title">My Tasks</h2>
-          <p className="page-header__subtitle">Work assigned to you.</p>
+          <h2 className="page-header__title">המשימות שלי</h2>
+          <p className="page-header__subtitle">עבודה שהוקצתה לכם.</p>
         </div>
 
         {actionError && (
@@ -86,31 +86,31 @@ export default function MyTasks() {
 
         {completionSuccess && <p className="employee-form__success">{completionSuccess}</p>}
 
-        {status === 'loading' && <p className="employee-empty">Loading tasks…</p>}
+        {status === 'loading' && <p className="employee-empty">טוען משימות…</p>}
 
         {status === 'error' && (
           <div className="alert-banner">
             <span className="alert-banner__dot" />
-            Could not load tasks. Please try again.
+            לא ניתן היה לטעון את המשימות. אנא נסו שוב.
           </div>
         )}
 
-        {status === 'ready' && tasks.length === 0 && <p className="employee-empty">No tasks assigned yet.</p>}
+        {status === 'ready' && tasks.length === 0 && <p className="employee-empty">עדיין לא הוקצו לכם משימות.</p>}
 
         {status === 'ready' && tasks.length > 0 && (
           <div className="machine-section">
             <div className="machine-section__header">
-              <span className="machine-section__title">My Tasks</span>
-              <span className="machine-section__count">{tasks.length} tasks</span>
+              <span className="machine-section__title">המשימות שלי</span>
+              <span className="machine-section__count">{tasks.length} משימות</span>
             </div>
             <table className="machine-table">
               <thead>
                 <tr>
-                  <th>Title</th>
-                  <th>Machine</th>
-                  <th>Due</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th>כותרת</th>
+                  <th>מכונה</th>
+                  <th>יעד</th>
+                  <th>סטטוס</th>
+                  <th>פעולות</th>
                 </tr>
               </thead>
               <tbody>
@@ -126,12 +126,12 @@ export default function MyTasks() {
                     <td>
                       <span className={`status-badge status-badge--${task.status === 'completed' ? 'clean' : 'maintenance'}`}>
                         <span className="status-badge__dot" />
-                        {task.status === 'completed' ? 'Completed' : 'Pending'}
+                        {task.status === 'completed' ? 'הושלם' : 'ממתין'}
                       </span>
-                      {task.completionNotes && <div className="machine-location">Notes: {task.completionNotes}</div>}
+                      {task.completionNotes && <div className="machine-location">הערות: {task.completionNotes}</div>}
                       {task.completionPhotoUrl && (
                         <a href={task.completionPhotoUrl} target="_blank" rel="noreferrer">
-                          <img src={task.completionPhotoUrl} alt="Completion evidence" className="employee-avatar" />
+                          <img src={task.completionPhotoUrl} alt="תיעוד השלמה" className="employee-avatar" />
                         </a>
                       )}
                     </td>
@@ -141,7 +141,7 @@ export default function MyTasks() {
                           <div className="table-actions">
                             <input
                               className="employee-form__input"
-                              placeholder="Completion notes (optional)"
+                              placeholder="הערות השלמה (אופציונלי)"
                               value={notes}
                               onChange={e => setNotes(e.target.value)}
                             />
@@ -156,7 +156,7 @@ export default function MyTasks() {
                               disabled={saving}
                               onClick={() => handleComplete(task.id, task.taskType === 'cleaning')}
                             >
-                              {saving ? 'Saving…' : 'Confirm'}
+                              {saving ? 'שומר…' : 'אישור'}
                             </button>
                           </div>
                         ) : (
@@ -169,7 +169,7 @@ export default function MyTasks() {
                               setCompletionSuccess(null);
                             }}
                           >
-                            Mark Completed
+                            סמן כהושלם
                           </button>
                         )
                       )}
