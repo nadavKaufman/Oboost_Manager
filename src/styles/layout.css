@@ -306,9 +306,11 @@
   border-right-color: var(--border);
 }
 
+/* Label text stays neutral even when active — only the icon (below) and
+   the accent border/background pick up the orange identity. */
 .sidebar__nav-item.active {
   background: var(--orange-tint);
-  color: var(--orange);
+  color: var(--text);
   border-right-color: var(--orange);
   font-weight: 600;
 }
@@ -326,10 +328,49 @@
   vertical-align: middle;
 }
 
-/* Machines icon keeps the OBoost orange identity regardless of the nav
-   item's hover/active text color — background/border/font-weight
-   transitions on .sidebar__nav-item are untouched. */
-.sidebar__nav-icon--accent {
+/* Monochrome nav-icon PNGs (black artwork, transparent background) —
+   rendered as a solid-color span masked by the PNG's shape (not a plain
+   <img>), so the icon's color can be controlled independently of the
+   label text: neutral by default, orange on hover/active below, while
+   .sidebar__nav-item's own `color` (driving the label) stays neutral in
+   both states. Sized to match the emoji/SVG icons they replaced; same
+   opacity (from the shared .sidebar__nav-icon wrapper) for a consistent
+   look across every item. */
+.sidebar__nav-icon-img {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+  flex-shrink: 0;
+  background-color: var(--text-muted);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  transition: background-color 0.13s;
+}
+
+.sidebar__nav-item:hover .sidebar__nav-icon-img,
+.sidebar__nav-item.active .sidebar__nav-icon-img {
+  background-color: var(--orange);
+}
+
+/* Plain-glyph icons (☰ Reports, ✓ Tasks/My Tasks, 📋 My Activity — no
+   matching PNG file yet) — same independent-color treatment as
+   .sidebar__nav-icon-img just above, via `color` instead of
+   `background-color` since these are text characters, not masked images.
+   Without this they'd inherit .sidebar__nav-item's own `color`, which is
+   pinned neutral on hover/active for the label's sake, so the glyph would
+   silently stay neutral instead of turning orange with every other icon. */
+.sidebar__nav-icon-glyph {
+  color: var(--text-muted);
+  transition: color 0.13s;
+}
+
+.sidebar__nav-item:hover .sidebar__nav-icon-glyph,
+.sidebar__nav-item.active .sidebar__nav-icon-glyph {
   color: var(--orange);
 }
 
@@ -395,6 +436,11 @@
 
   .dash-layout--collapsed .sidebar__nav-icon {
     font-size: 18px;
+  }
+
+  .dash-layout--collapsed .sidebar__nav-icon-img {
+    width: 19px;
+    height: 19px;
   }
 
   .dash-layout--collapsed .sidebar__footer {

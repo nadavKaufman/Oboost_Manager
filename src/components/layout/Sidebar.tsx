@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { UserRole } from '../../types/machine';
-import MachineIcon from '../dashboard/MachineIcon';
 
 interface Props {
   open: boolean;
@@ -26,22 +25,60 @@ const ROLE_LABEL: Record<UserRole, string> = {
   preview: 'צפייה בלבד',
 };
 
-// Machines icon carries the OBoost orange accent, unlike every other
-// nav icon which just inherits the item's current text color.
+// Monochrome PNGs (transparent background) replacing the old colorful
+// emoji icons, for a consistent, professional look across every item.
+// Reports/Tasks/My Activity have no matching icon file yet, so they keep
+// their existing emoji glyphs unchanged for now.
+//
+// Rendered as a solid-color span masked by the PNG's shape, not a plain
+// <img> — a raster image can't be recolored via CSS `color`/currentColor
+// the way the old inline SVGs were, and the icon needs to change color
+// independently of the label text (neutral by default, orange only on
+// hover/active — see .sidebar__nav-icon-img in layout.css).
+function NavIcon({ src }: { src: string }) {
+  return (
+    <span
+      className="sidebar__nav-icon-img"
+      style={{ WebkitMaskImage: `url(${src})`, maskImage: `url(${src})` }}
+      aria-hidden="true"
+    />
+  );
+}
+
+// Plain-glyph icons (no matching PNG file yet) — still need their own
+// element, same as NavIcon above: left as bare characters, they'd just
+// inherit .sidebar__nav-item's own `color`, which is intentionally pinned
+// to a neutral shade in both the hover and active states (so the label
+// text never turns orange) — meaning the glyph would silently inherit
+// that same neutral color instead of turning orange like every other
+// icon. Wrapping it decouples its color from the label's.
+function NavGlyph({ children }: { children: ReactNode }) {
+  return (
+    <span className="sidebar__nav-icon-glyph" aria-hidden="true">
+      {children}
+    </span>
+  );
+}
+
+const HOME_ICON = <NavIcon src="/icons/home.png" />;
+const MACHINE_ICON = <NavIcon src="/icons/vending-machine.png" />;
+const EMPLOYEE_ICON = <NavIcon src="/icons/employee.png" />;
+const INVENTORY_ICON = <NavIcon src="/icons/harvest.png" />;
+
 const MANAGER_NAV_ITEMS: NavItem[] = [
-  { icon: '🏠', label: 'ראשי', path: '/dashboard' },
-  { icon: <MachineIcon className="sidebar__nav-icon--accent" />, label: 'מכונות', path: '/machines' },
-  { icon: '👥', label: 'עובדים', path: '/employees' },
-  { icon: '📦', label: 'מלאי', path: '/inventory' },
-  { icon: '☰', label: 'דוחות', path: '/reports' },
-  { icon: '✓', label: 'משימות', path: '/tasks' },
+  { icon: HOME_ICON, label: 'ראשי', path: '/dashboard' },
+  { icon: MACHINE_ICON, label: 'מכונות', path: '/machines' },
+  { icon: EMPLOYEE_ICON, label: 'עובדים', path: '/employees' },
+  { icon: INVENTORY_ICON, label: 'מלאי', path: '/inventory' },
+  { icon: <NavGlyph>☰</NavGlyph>, label: 'דוחות', path: '/reports' },
+  { icon: <NavGlyph>✓</NavGlyph>, label: 'משימות', path: '/tasks' },
 ];
 
 const EMPLOYEE_NAV_ITEMS: NavItem[] = [
-  { icon: <MachineIcon className="sidebar__nav-icon--accent" />, label: 'מכונות', path: '/my-machines' },
-  { icon: '📦', label: 'מלאי', path: '/inventory' },
-  { icon: '✓', label: 'המשימות שלי', path: '/my-tasks' },
-  { icon: '📋', label: 'הפעילות שלי', path: '/my-activity' },
+  { icon: MACHINE_ICON, label: 'מכונות', path: '/my-machines' },
+  { icon: INVENTORY_ICON, label: 'מלאי', path: '/inventory' },
+  { icon: <NavGlyph>✓</NavGlyph>, label: 'המשימות שלי', path: '/my-tasks' },
+  { icon: <NavGlyph>📋</NavGlyph>, label: 'הפעילות שלי', path: '/my-activity' },
 ];
 
 // Path-prefix match so sub-routes (e.g. /machines/:id, /machines/:id/report-malfunction)

@@ -2,7 +2,7 @@ interface Props {
   label: string;
   value: number;
   subtext?: string;
-  accent?: 'default' | 'green' | 'amber' | 'red';
+  accent?: 'default' | 'green' | 'amber' | 'red' | 'orange';
   size?: 'md' | 'lg';
   /** Extra class(es) merged onto the root `.stat-card` element — used on the
    *  Overview page to gate individual cards to a specific breakpoint (see

@@ -1192,6 +1192,29 @@ export async function createSparePart(input: CreateSparePartInput): Promise<{ er
   return { error: null };
 }
 
+export interface UpdateSparePartInput {
+  name: string;
+  description: string;
+  unit: string;
+}
+
+// Same table/columns as createSparePart, and covered by the same existing
+// RLS policy ("inventory_items: manager update spare parts", migration
+// 20_spare_parts.sql) and `grant update on public.inventory_items to
+// authenticated` — no schema/RLS/grant change needed for this.
+export async function updateSparePart(id: string, input: UpdateSparePartInput): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('inventory_items')
+    .update({ name: input.name, description: input.description, unit: input.unit || 'unit' })
+    .eq('id', id);
+
+  if (error) {
+    if (import.meta.env.DEV) console.error('[oboost] updateSparePart error:', error.message);
+    return { error: 'לא ניתן היה לעדכן את חלק החילוף. אנא נסו שוב.' };
+  }
+  return { error: null };
+}
+
 export async function setSparePartActive(id: string, isActive: boolean): Promise<{ error: string | null }> {
   const { error } = await supabase.from('inventory_items').update({ is_active: isActive }).eq('id', id);
   if (error) {

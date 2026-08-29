@@ -109,7 +109,16 @@ export default function Machines({
       }
     } else {
       if (isMobile) {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // Same reasoning as the open path above: the form's own collapse
+        // transition (.collapsible__body's grid-template-rows, 0.25s) was
+        // still shrinking the page underneath this scroll when it ran
+        // immediately, which made it land in the wrong place instead of
+        // cleanly back at the top. Waiting for the collapse to finish
+        // first means nothing is changing size while this scroll animates.
+        const timer = setTimeout(() => {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 260);
+        return () => clearTimeout(timer);
       } else {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }

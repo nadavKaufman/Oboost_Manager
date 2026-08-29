@@ -108,7 +108,7 @@ export default function MachineMobileView({
     <div className="machine-mobile-view">
       <div className="mobile-item-card">
         <div className="mobile-item-card__name">
-          <Link to={`/machines/${machine.id}`}>{machine.name}</Link>
+          {machine.name}
         </div>
         <div className="machine-detail-grid">
           <div className="machine-detail-image">

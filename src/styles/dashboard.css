@@ -168,6 +168,13 @@
   box-shadow: var(--shadow-sm), inset -3px 0 0 var(--red);
 }
 
+/* Brand accent, not a status color — used where orange itself is the
+   point (e.g. the mobile "מלאי נוכחי" orange-carton card), regardless of
+   the stock level. */
+.stat-card--orange {
+  box-shadow: var(--shadow-sm), inset -3px 0 0 var(--orange);
+}
+
 /* Cards with an icon (StatCard's `iconSrc`) instead get a very soft
    orange-to-white gradient wash — the card's one spot of color, decorative
    rather than a status signal (same on both cleaning cards, not red/green).
@@ -212,9 +219,10 @@
   flex-shrink: 0;
 }
 
-.stat-card__dot--red   { background: var(--red); }
-.stat-card__dot--amber { background: var(--amber); }
-.stat-card__dot--green { background: var(--green); }
+.stat-card__dot--red    { background: var(--red); }
+.stat-card__dot--amber  { background: var(--amber); }
+.stat-card__dot--green  { background: var(--green); }
+.stat-card__dot--orange { background: var(--orange); }
 
 /* Optional icon (StatCard's `iconSrc`) — the PNG itself, transparent
    background, sitting directly on the card with no colored square/shape
@@ -628,6 +636,30 @@
 .machine-due--clean    { color: var(--green); }
 .machine-due--due_soon { color: var(--amber); }
 .machine-due--overdue  { color: var(--red); }
+
+/* Desktop spare-parts table: table-layout is `auto` by default, which sizes
+   every column from its own widest cell — fine for a single table, but it
+   means the מלאי/פעולות column widths (and therefore where "עריכה" lands)
+   are only "aligned" because every row happens to share those two columns.
+   Pinning explicit widths on them (fixed layout, name column gets whatever
+   space is left) makes that deterministic instead of incidental, and keeps
+   a fixed, generous gap between the stock number and the edit button no
+   matter how long a part's name/description is. Scoped to this table only
+   (its own class, not bare .machine-table) — every other page's table is
+   untouched. */
+.inventory-parts-table__table {
+  table-layout: fixed;
+}
+
+.inventory-parts-table__table th:nth-child(2),
+.inventory-parts-table__table td:nth-child(2) {
+  width: 90px;
+}
+
+.inventory-parts-table__table th:nth-child(3),
+.inventory-parts-table__table td:nth-child(3) {
+  width: 120px;
+}
 
 /* ─── Status badge ─── */
 
@@ -1390,6 +1422,16 @@
   .inventory-page .inventory-form-block .employee-form__select {
     padding: 9px 10px;
     font-size: 13px;
+    /* Without an explicit width, a <select> (its widest <option> — a spare
+       part's name can be arbitrarily long) or a native <input> doesn't
+       reliably stretch to its own grid cell — same root cause already
+       fixed once for the Machines add-form's inputs (see .machines-page
+       .employee-form__input above). Here it's worse: with two of these
+       forms open side by side (see .inventory-form-block below for the
+       matching grid-track fix), the oversized control pushed the whole
+       two-column row past the phone's viewport width. */
+    width: 100%;
+    max-width: 100%;
   }
 
   .inventory-page .inventory-form-block .btn-add-employee {
@@ -1445,13 +1487,29 @@
     flex-direction: column;
   }
 
+  /* A real 3-column CSS grid, not nested flex groups — the previous
+     approach (flex row + an inner flex "end" group bundling stock+edit)
+     kept drifting per row because column widths were still ultimately
+     derived from content (stock's own digit count, name's own text
+     length) at one point or another. Grid column tracks are fixed by this
+     one shared rule for every row, completely independent of what's
+     inside them: column 1 (name/description) is the only flexible track,
+     columns 2 (stock) and 3 (edit) are fixed pixel widths, so their left
+     edges — and the edit button's — land at the exact same x position on
+     every row regardless of name length, description, or stock digit
+     count. `--with-edit` adds the third track only when the edit button
+     actually renders (non-managers never see it). */
   .inventory-parts-list__row {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 44px;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    gap: 16px;
     padding: 10px 2px;
     border-bottom: 1px solid var(--border);
+  }
+
+  .inventory-parts-list__row--with-edit {
+    grid-template-columns: 1fr 44px 64px;
   }
 
   .inventory-parts-list__row:last-child {
@@ -1483,15 +1541,14 @@
   }
 
   .inventory-parts-list__stock {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
+    text-align: center;
   }
 
-  .inventory-parts-list__unit {
+  .inventory-parts-list__edit {
+    width: 100%;
+    text-align: center;
+    padding: 4px 8px;
     font-size: 11px;
-    color: var(--text-muted);
   }
 }
 
@@ -1511,10 +1568,131 @@
   padding: 20px 24px 24px;
 }
 
+/* Desktop-only replacement for the floating "מלאי נוכחי" card (which
+   stays mobile-only — see .stat-card--mobile-only below): a low, compact
+   bar spanning the section instead of a small square competing for
+   attention with the forms beneath it. Subtle accent only (tinted
+   background + the same inset edge used on .stat-card--orange), not a
+   bordered/shadowed card of its own. Hidden on mobile, where the
+   .stat-card above already covers this. */
+.inventory-orange-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 20px;
+  margin-bottom: 20px;
+  border-radius: var(--radius-md);
+  background: var(--orange-tint);
+  box-shadow: inset -3px 0 0 var(--orange);
+}
+
+.inventory-orange-summary__icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.inventory-orange-summary__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.inventory-orange-summary__value {
+  margin-inline-start: auto;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.inventory-orange-summary__unit {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+@media (max-width: 767px) {
+  .inventory-orange-summary {
+    display: none;
+  }
+}
+
+/* Mirror of .stat-card--desktop-only (Overview's KPI card) — this one
+   hides the other direction. Two classes to outrank the base .stat-card
+   `display: flex` rule on specificity, matching that rule's own reasoning
+   (equal-specificity ties resolve by source order, not intent). */
+@media (min-width: 768px) {
+  .stat-cards .stat-card--mobile-only {
+    display: none;
+  }
+}
+
 .inventory-forms-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 24px;
+}
+
+/* A grid item's default min-width is `auto`, which means it won't shrink
+   below its content's own intrinsic minimum (e.g. a <select>'s widest
+   <option> — a spare part's name can be arbitrarily long) even though its
+   track is sized in `1fr`/minmax units. Without this, having both forms
+   open at once on mobile (where .inventory-forms-row collapses to two
+   equal 1fr columns — see the mobile query above) could force the whole
+   row wider than the track sizing intended, overflowing the phone's
+   viewport. */
+.inventory-form-block {
+  min-width: 0;
+}
+
+.inventory-edit-part-form {
+  margin-bottom: 20px;
+}
+
+/* "+ הוספת סוג חלק חילוף חדש" — creating a brand-new spare-part type,
+   deliberately placed below the stock list and styled completely
+   differently (dashed outline, plus glyph) from the add/withdraw-stock
+   toggles above, so it's never confused with "הוספת חלקי חילוף" (adding
+   stock to a part that already exists). Collapsed by default to a single
+   compact row; expands in place to the create form when tapped. */
+.inventory-add-part {
+  margin-top: 20px;
+}
+
+.inventory-add-part__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  background: none;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.inventory-add-part__trigger:hover {
+  border-color: var(--orange);
+  color: var(--orange);
+  background: var(--orange-tint);
+}
+
+.inventory-add-part__plus {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.inventory-add-part__hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
 }
 
 /* Each inline form reuses .employee-form__body's field/input/actions
@@ -1881,6 +2059,13 @@
   .employees-page .employee-form__select {
     padding: 12px 14px;
     font-size: 15px;
+    /* Same root cause already fixed once for Machines's add-form inputs
+       (see .machines-page .employee-form__input above): without an
+       explicit width, a native control doesn't reliably stretch to its
+       own grid cell, and the overflow was pushing "הוספת עובד" past the
+       phone's viewport edge. */
+    width: 100%;
+    max-width: 100%;
   }
 
   .employees-page .btn-add-employee {

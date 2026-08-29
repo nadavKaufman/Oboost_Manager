@@ -7,7 +7,8 @@ import {
   recordOrangeDelivery,
   recordOrangeWithdrawal,
   getSpareParts,
-  setSparePartActive,
+  createSparePart,
+  updateSparePart,
   recordSparePartDelivery,
   recordSparePartWithdrawal,
   PREVIEW_BLOCKED_MESSAGE,
@@ -18,6 +19,16 @@ import '../styles/layout.css';
 import '../styles/dashboard.css';
 
 const FALLBACK_USER = { name: '', role: 'employee' as const };
+
+// Unit of measure is intentionally not shown/edited anywhere in the UI
+// (manager request — it doesn't add useful information here). The
+// existing createSparePart/updateSparePart functions still take a `unit`
+// field, so an empty string is passed through — createSparePart already
+// falls back to a default internally ('unit') when it's empty, and
+// updateSparePart is always called with the part's own existing value
+// (never blanked out) so editing a part's name never silently changes
+// its stored unit.
+const EMPTY_PART_FORM = { name: '', description: '' };
 
 type LoadStatus = 'loading' | 'error' | 'ready';
 type InventoryTab = 'oranges' | 'spareparts';
@@ -44,6 +55,7 @@ export default function Inventory() {
   // dashboard.css.
   const [deliveryFormOpen, setDeliveryFormOpen] = useState(false);
   const [withdrawFormOpen, setWithdrawFormOpen] = useState(false);
+  const [partCreateFormOpen, setPartCreateFormOpen] = useState(false);
   const [partDeliveryFormOpen, setPartDeliveryFormOpen] = useState(false);
   const [partWithdrawFormOpen, setPartWithdrawFormOpen] = useState(false);
 
@@ -62,6 +74,14 @@ export default function Inventory() {
   // ── Spare parts ──
   const [partsStatus, setPartsStatus] = useState<LoadStatus>('loading');
   const [parts, setParts] = useState<SparePartRecord[]>([]);
+
+  const [partForm, setPartForm] = useState(EMPTY_PART_FORM);
+  const [savingPart, setSavingPart] = useState(false);
+
+  const [editingPartId, setEditingPartId] = useState<string | null>(null);
+  const [editPartForm, setEditPartForm] = useState(EMPTY_PART_FORM);
+  const [savingEditPart, setSavingEditPart] = useState(false);
+  const [editPartError, setEditPartError] = useState<string | null>(null);
 
   const [partDeliveryItem, setPartDeliveryItem] = useState('');
   const [partDeliveryQty, setPartDeliveryQty] = useState('');
@@ -142,12 +162,57 @@ export default function Inventory() {
     }
   }
 
-  async function handleToggleActive(id: string, isActive: boolean) {
+  async function handleCreatePart(e: FormEvent) {
+    e.preventDefault();
     if (isPreview) { setActionError(PREVIEW_BLOCKED_MESSAGE); return; }
     setActionError(null);
-    const { error } = await setSparePartActive(id, !isActive);
-    if (error) setActionError(error);
-    else await loadParts();
+    if (!partForm.name.trim()) {
+      setActionError('יש למלא שם עבור חלק החילוף.');
+      return;
+    }
+    setSavingPart(true);
+    const { error } = await createSparePart({ ...partForm, unit: '' });
+    setSavingPart(false);
+    if (error) {
+      setActionError(error);
+    } else {
+      setPartForm(EMPTY_PART_FORM);
+      await loadParts();
+    }
+  }
+
+  function openEditPart(part: SparePartRecord) {
+    setEditPartError(null);
+    setEditPartForm({ name: part.name, description: part.description });
+    setEditingPartId(part.id);
+  }
+
+  function closeEditPart() {
+    setEditingPartId(null);
+    setEditPartError(null);
+  }
+
+  async function handleSaveEditPart(e: FormEvent) {
+    e.preventDefault();
+    if (!editingPartId) return;
+    if (isPreview) { setEditPartError(PREVIEW_BLOCKED_MESSAGE); return; }
+    if (!editPartForm.name.trim()) {
+      setEditPartError('יש למלא שם עבור חלק החילוף.');
+      return;
+    }
+    setEditPartError(null);
+    setSavingEditPart(true);
+    // Unit isn't editable here — always pass the part's own existing
+    // value through unchanged, never blank it out.
+    const existingUnit = parts.find(p => p.id === editingPartId)?.unit ?? '';
+    const { error } = await updateSparePart(editingPartId, { ...editPartForm, unit: existingUnit });
+    setSavingEditPart(false);
+    if (error) {
+      setEditPartError(error);
+    } else {
+      closeEditPart();
+      await loadParts();
+    }
   }
 
   async function handlePartDelivery(e: FormEvent) {
@@ -252,9 +317,18 @@ export default function Inventory() {
                   <StatCard
                     label="מלאי נוכחי"
                     value={data.currentStock}
-                    accent={data.currentStock > 0 ? 'green' : 'red'}
+                    accent="orange"
                     subtext="קרטוני תפוזים"
+                    className="stat-card--mobile-only"
                   />
+                </div>
+
+                <div className="inventory-orange-summary">
+                  <img src="/icons/orange.png" alt="" className="inventory-orange-summary__icon" />
+                  <span className="inventory-orange-summary__label">מלאי תפוזים נוכחי</span>
+                  <span className="inventory-orange-summary__value">
+                    {data.currentStock} <span className="inventory-orange-summary__unit">קרטונים</span>
+                  </span>
                 </div>
 
                 <div className="inventory-forms-row">
@@ -364,6 +438,7 @@ export default function Inventory() {
             )}
 
             {partsStatus === 'ready' && (
+              <>
                 <div className="inventory-forms-row">
                   {canViewManagerUI && (
                     <div className={`inventory-form-block${partDeliveryFormOpen ? ' inventory-form-block--open' : ''}`}>
@@ -477,6 +552,7 @@ export default function Inventory() {
                     </form>
                   </div>
                 </div>
+              </>
             )}
           </div>
         </div>
@@ -487,20 +563,54 @@ export default function Inventory() {
             <span className="machine-section__count">{visibleParts.length} חלקים</span>
           </div>
           <div className="inventory-section__body">
+                  {editingPartId && (
+                    <form className="employee-form__body inventory-edit-part-form" onSubmit={handleSaveEditPart}>
+                      <div className="employee-form__field">
+                        <label className="employee-form__label" htmlFor="edit-part-name">שם</label>
+                        <input
+                          id="edit-part-name"
+                          className="employee-form__input"
+                          value={editPartForm.name}
+                          onChange={e => setEditPartForm(prev => ({ ...prev, name: e.target.value }))}
+                          required
+                        />
+                      </div>
+                      <div className="employee-form__field">
+                        <label className="employee-form__label" htmlFor="edit-part-desc">תיאור (אופציונלי)</label>
+                        <input
+                          id="edit-part-desc"
+                          className="employee-form__input"
+                          value={editPartForm.description}
+                          onChange={e => setEditPartForm(prev => ({ ...prev, description: e.target.value }))}
+                        />
+                      </div>
+                      <div className="employee-form__actions">
+                        <button type="submit" className="btn-add-employee" disabled={savingEditPart}>
+                          {savingEditPart ? 'שומר…' : 'שמירת שינויים'}
+                        </button>
+                        <button type="button" className="btn-report-issue" onClick={closeEditPart}>
+                          ביטול
+                        </button>
+                        {editPartError && <span className="employee-form__error">{editPartError}</span>}
+                      </div>
+                    </form>
+                  )}
+
                   {visibleParts.length === 0 ? (
                     <p className="employee-empty">אין עדיין חלקי חילוף.</p>
                   ) : (
                     <>
-                      {/* Desktop: unchanged full table (status/actions included).
-                          Hidden on mobile — see .inventory-parts-table__table
-                          in dashboard.css. */}
+                      {/* Desktop: unchanged full table, status/disable
+                          columns replaced with Edit (that concept doesn't
+                          apply to spare parts); unit of measure column
+                          removed (not shown anywhere in this UI anymore).
+                          Hidden on mobile — see
+                          .inventory-parts-table__table in dashboard.css. */}
                       <table className="machine-table inventory-parts-table__table">
                         <thead>
                           <tr>
                             <th>שם</th>
-                            <th>יחידת מידה</th>
                             <th>מלאי</th>
-                            {canViewManagerUI && <th>סטטוס</th>}
                             {canViewManagerUI && <th>פעולות</th>}
                           </tr>
                         </thead>
@@ -511,24 +621,15 @@ export default function Inventory() {
                                 <div className="machine-name">{part.name}</div>
                                 {part.description && <div className="machine-location">{part.description}</div>}
                               </td>
-                              <td data-label="יחידת מידה">{part.unit}</td>
                               <td data-label="מלאי">
                                 <span className={`machine-due machine-due--${part.currentStock > 0 ? 'clean' : 'overdue'}`}>
                                   {part.currentStock}
                                 </span>
                               </td>
                               {canViewManagerUI && (
-                                <td data-label="סטטוס">
-                                  <span className={`status-badge status-badge--${part.isActive ? 'clean' : 'maintenance'}`}>
-                                    <span className="status-badge__dot" />
-                                    {part.isActive ? 'פעיל' : 'לא פעיל'}
-                                  </span>
-                                </td>
-                              )}
-                              {canViewManagerUI && (
                                 <td data-label="פעולות">
-                                  <button className="btn-report-issue" onClick={() => handleToggleActive(part.id, part.isActive)}>
-                                    {part.isActive ? 'השבתה' : 'הפעלה'}
+                                  <button className="btn-report-issue" onClick={() => openEditPart(part)}>
+                                    עריכה
                                   </button>
                                 </td>
                               )}
@@ -537,30 +638,90 @@ export default function Inventory() {
                         </tbody>
                       </table>
 
-                      {/* Mobile: compact scan-friendly list — name + quantity
-                          only (no status/actions, per manager request that
-                          active/deactivate doesn't belong on spare parts on
-                          mobile). Hidden on desktop, where the table above is
-                          shown instead. */}
+                      {/* Mobile: compact scan-friendly list — name and
+                          quantity, plus Edit for managers (no status/
+                          disable, no unit of measure). Hidden on desktop,
+                          where the table above is shown instead. */}
                       <ul className="inventory-parts-list">
                         {visibleParts.map(part => (
-                          <li key={part.id} className="inventory-parts-list__row">
+                          <li key={part.id} className={`inventory-parts-list__row${canViewManagerUI ? ' inventory-parts-list__row--with-edit' : ''}`}>
                             <div className="inventory-parts-list__main">
                               <span className="inventory-parts-list__name">{part.name}</span>
                               {part.description && (
                                 <span className="inventory-parts-list__desc">{part.description}</span>
                               )}
                             </div>
-                            <div className="inventory-parts-list__stock">
-                              <span className={`machine-due machine-due--${part.currentStock > 0 ? 'clean' : 'overdue'}`}>
-                                {part.currentStock}
-                              </span>
-                              <span className="inventory-parts-list__unit">{part.unit}</span>
-                            </div>
+                            <span className={`machine-due machine-due--${part.currentStock > 0 ? 'clean' : 'overdue'} inventory-parts-list__stock`}>
+                              {part.currentStock}
+                            </span>
+                            {canViewManagerUI && (
+                              <button
+                                type="button"
+                                className="btn-report-issue inventory-parts-list__edit"
+                                onClick={() => openEditPart(part)}
+                              >
+                                עריכה
+                              </button>
+                            )}
                           </li>
                         ))}
                       </ul>
                     </>
+                  )}
+
+                  {canViewManagerUI && (
+                    <div className="inventory-add-part">
+                      {!partCreateFormOpen ? (
+                        <button
+                          type="button"
+                          className="inventory-add-part__trigger"
+                          onClick={() => setPartCreateFormOpen(true)}
+                          aria-label="הוספת סוג חלק חילוף חדש"
+                          title="הוספת סוג חלק חילוף חדש"
+                        >
+                          <span className="inventory-add-part__plus" aria-hidden="true">+</span>
+                        </button>
+                      ) : (
+                        <>
+                          <p className="inventory-add-part__hint">
+                            יצירת סוג חדש של חלק חילוף — לא הוספת מלאי לפריט קיים.
+                          </p>
+                          <form className="employee-form__body" onSubmit={handleCreatePart}>
+                            <div className="employee-form__field">
+                              <label className="employee-form__label" htmlFor="part-name">שם</label>
+                              <input
+                                id="part-name"
+                                className="employee-form__input"
+                                value={partForm.name}
+                                onChange={e => setPartForm(prev => ({ ...prev, name: e.target.value }))}
+                                required
+                              />
+                            </div>
+                            <div className="employee-form__field">
+                              <label className="employee-form__label" htmlFor="part-desc">תיאור (אופציונלי)</label>
+                              <input
+                                id="part-desc"
+                                className="employee-form__input"
+                                value={partForm.description}
+                                onChange={e => setPartForm(prev => ({ ...prev, description: e.target.value }))}
+                              />
+                            </div>
+                            <div className="employee-form__actions">
+                              <button type="submit" className="btn-add-employee" disabled={savingPart}>
+                                {savingPart ? 'שומר…' : 'יצירת חלק חילוף'}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-report-issue"
+                                onClick={() => { setPartCreateFormOpen(false); setPartForm(EMPTY_PART_FORM); }}
+                              >
+                                ביטול
+                              </button>
+                            </div>
+                          </form>
+                        </>
+                      )}
+                    </div>
                   )}
           </div>
         </div>
